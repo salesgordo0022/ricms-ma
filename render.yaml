@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ricms-ma
+    runtime: docker
+    repo: https://github.com/salesgordo0022/ricms-ma
+    plan: free
+    healthCheckPath: /api/status
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: OPENROUTER_API_KEY
+        sync: false
