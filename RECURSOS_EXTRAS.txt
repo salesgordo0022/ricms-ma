@@ -1,0 +1,19 @@
+RECURSOS EXTRAS — checklist "vale pra você?" + atalhos por segmento
+====================================================================
+
+O que fazem (facilitam pro cliente):
+- Checklist de elegibilidade em cada resultado da Consulta: o cliente marca
+  SIM/NÃO os requisitos e o sistema conclui "✅ vale / ⚠️ não vale" na hora.
+- Atalhos por segmento (supermercado, farmácia, agro, produtor, etc.): já
+  ajustam etapa/operação e sugerem os produtos típicos daquele ramo.
+
+COMO DESLIGAR (qualquer uma das opções):
+1) Mais simples: em app.py, mude   RECURSOS_EXTRAS = True   para   False
+   -> o backend para de enviar os dados e o frontend some sozinho.
+2) Ou apague o arquivo  eligibilidade.py  (o app detecta e desliga).
+3) Front (opcional, se quiser tirar do HTML): em static/index.html apague
+   - o bloco marcado  <!-- RECURSOS EXTRAS: segmentos ... /RECURSOS EXTRAS -->
+   - o bloco JS marcado  // ===== RECURSOS EXTRAS ... // ===== fim RECURSOS EXTRAS =====
+   - a linha  ${it.elegibilidade?elegHTML(it.elegibilidade):''}
+
+Nada disso afeta a base de dados nem o resto do sistema.

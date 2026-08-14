@@ -1,0 +1,949 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistente Fiscal ICMS/MA</title>
+<style>
+:root{
+ --bg:#080b12;
+ --glass:rgba(18,24,38,.55); --glass2:rgba(24,31,48,.72);
+ --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.15);
+ --ink:#e9eef7; --mut:#96a3b8; --faint:#6b7688;
+ --brand:#3b5bd9; --brand2:#1f3dbc; --glow:rgba(59,91,217,.45);
+ --ok:#7bd88f; --okbg:rgba(46,160,80,.14);
+ --warn:#f0c761; --warnbg:rgba(240,180,60,.12);
+ --bad:#f0857a; --badbg:rgba(240,90,70,.13);
+ --r:16px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:'Inter',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:var(--ink);font-size:14px;min-height:100vh;position:relative;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:
+ radial-gradient(1100px 560px at 50% -12%, rgba(31,61,188,.30), transparent 60%),
+ radial-gradient(760px 460px at 88% 4%, rgba(59,91,217,.15), transparent 60%),
+ linear-gradient(180deg,#080b12 0%,#0a0e1a 100%);}
+#bgwave{position:fixed;left:0;bottom:0;width:100%;height:100vh;z-index:-1;opacity:.5;pointer-events:none}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
+::-webkit-scrollbar-track{background:transparent}
+
+/* header / navbar pílula */
+header{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+ padding:14px 22px;background:rgba(8,11,18,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+header h1{font-size:17px;font-weight:800;margin:0;color:#fff;letter-spacing:.2px;display:flex;align-items:center;gap:11px}
+header h1 .dot{width:38px;height:38px;border-radius:11px;background:linear-gradient(145deg,var(--brand),var(--brand2));display:inline-flex;align-items:center;justify-content:center;box-shadow:0 6px 18px var(--glow),inset 0 1px 0 rgba(255,255,255,.25);flex:none}
+header h1 .dot svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2}
+.tabs{display:flex;gap:4px;margin-left:auto;padding:5px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.tab{display:inline-flex;align-items:center;gap:9px;padding:11px 20px;border-radius:999px;cursor:pointer;color:var(--mut);font-weight:700;font-size:14px;transition:.2s;white-space:nowrap;user-select:none}
+.tab svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:.2s}
+.tab:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.tab.on{background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;box-shadow:0 6px 18px var(--glow)}
+.tab.on svg{transform:scale(1.06)}
+@media(max-width:560px){.tab span{display:none}.tab{padding:11px 14px}}
+
+.wrap{max-width:1040px;margin:0 auto;padding:22px 16px 70px}
+
+/* controles */
+select,input,textarea{width:100%;background:rgba(255,255,255,.045);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:14px;font-family:inherit;transition:.15s}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--glow);background:rgba(255,255,255,.06)}
+select option,select optgroup{background:#121826;color:var(--ink)}
+input[type=file]{padding:8px;font-size:13px;color:var(--mut)}
+input[type=checkbox]{width:auto}
+label{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px;font-weight:600}
+button{background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;border:0;border-radius:12px;padding:11px 18px;font-weight:600;cursor:pointer;font-size:14px;transition:.18s;box-shadow:0 4px 14px var(--glow)}
+button:hover{filter:brightness(1.09);transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+button.sec{background:rgba(255,255,255,.06);border:1px solid var(--line2);color:var(--ink);box-shadow:none;font-weight:600}
+button.sec:hover{background:rgba(255,255,255,.11)}
+
+.perfilbar{background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.perfilbar>div:first-child{min-width:200px}
+
+.panel{display:none;animation:fade .35s ease}.panel.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* chat */
+#chatlog{background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:var(--r);padding:18px;height:56vh;overflow-y:auto;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 34px rgba(0,0,0,.35)}
+.msg{max-width:82%;padding:12px 15px;border-radius:16px;line-height:1.55;white-space:pre-wrap;font-size:14px;animation:pop .25s ease}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.msg.u{align-self:flex-end;background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;border-bottom-right-radius:5px;box-shadow:0 4px 16px var(--glow)}
+.msg.a{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--line);border-bottom-left-radius:5px}
+.chatin{display:flex;gap:10px;margin-top:12px}.chatin input{flex:1}
+
+/* grid consulta */
+.grid{display:grid;grid-template-columns:2fr 1fr 1.4fr 1fr auto;gap:12px;align-items:end}
+@media(max-width:860px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.grid{grid-template-columns:1fr}}
+
+/* card resultado (glass) */
+.card{background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:var(--r);padding:16px;margin-top:14px;box-shadow:0 10px 34px rgba(0,0,0,.35);animation:pop .3s ease}
+.cfopbig{font-size:26px;font-weight:800;color:#fff;background:linear-gradient(180deg,var(--brand),var(--brand2));display:inline-block;padding:6px 16px;border-radius:12px;letter-spacing:1px;box-shadow:0 4px 16px var(--glow)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin-top:12px}
+.box{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.box .k{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}.box .v{font-weight:700;margin-top:2px}
+.ia{background:var(--okbg);border:1px solid rgba(46,160,80,.35);border-radius:12px;padding:14px;margin-top:12px}
+.iamd h4{margin:12px 0 4px}
+.tag{display:inline-block;font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(59,91,217,.18);color:#9db8f5;font-weight:600;border:1px solid rgba(59,91,217,.3)}
+.mut{color:var(--mut);font-size:12px}.small{font-size:12px}
+.ok{color:var(--ok)}.warn{color:var(--warn)}
+.perfilcard{background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.chips{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}.chips label{display:flex;gap:6px;align-items:center;text-transform:none;font-size:13px;color:var(--ink);margin:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.row2{grid-template-columns:1fr}}
+a{color:#8fb6f0;text-decoration:none}a:hover{text-decoration:underline}
+table{border-collapse:collapse}
+.segbar{margin-bottom:12px}
+
+/* hero de busca */
+.hero{text-align:center;margin:6px 0 20px}
+.herotitle{font-size:34px;font-weight:800;letter-spacing:-.6px;margin:0;background:linear-gradient(180deg,#fff,#aebbe0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.herosub{color:var(--mut);margin:10px auto 0;font-size:14px;max-width:560px}
+@media(max-width:640px){.herotitle{font-size:24px}}
+/* card de busca estilo hero */
+.pwrap{position:relative;max-width:820px;margin:0 auto}
+.pcard{position:relative;border-radius:20px;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line2);padding:16px 16px 14px;box-shadow:0 24px 60px rgba(0,0,0,.45);transition:.2s}
+.pcard.open,.pcard:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--glow),0 24px 60px rgba(0,0,0,.45)}
+.ptxt{display:block;width:100%;min-height:82px;max-height:200px;background:transparent;border:0;color:var(--ink);resize:none;padding:2px 2px 0;font-size:17px;line-height:1.55}
+.ptxt::placeholder{color:var(--faint)}
+.ptxt:focus{outline:none;box-shadow:none;border:0;background:transparent}
+.ptrg{display:none!important}
+.pfade{display:none}
+.pacts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-right:58px}
+.pre{position:relative}
+.pact{background:rgba(255,255,255,.06);border:1px solid var(--line2);color:var(--ink);border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;box-shadow:none;display:inline-flex;gap:6px;align-items:center;transition:.15s}
+.pact:hover{background:rgba(255,255,255,.13);transform:none;filter:none}
+.pdrop{position:absolute;bottom:calc(100% + 8px);left:0;background:var(--glass2);backdrop-filter:blur(14px);border:1px solid var(--line2);border-radius:12px;padding:6px;display:none;flex-direction:column;gap:2px;min-width:170px;z-index:6;box-shadow:0 12px 34px rgba(0,0,0,.5)}
+.pdrop.on{display:flex}
+.pdrop button{background:transparent;color:var(--ink);text-align:left;border-radius:8px;padding:8px 10px;font-weight:500;box-shadow:none;font-size:13px}
+.pdrop button:hover{background:rgba(255,255,255,.09);transform:none;filter:none}
+.pdrop button.sel{color:var(--brand);font-weight:700}
+#pOperDrop{min-width:252px}
+.psend{position:absolute;right:14px;bottom:14px;width:44px;height:44px;border-radius:50%;background:#eef1ff;color:#0a0e17;display:inline-flex;align-items:center;justify-content:center;padding:0;box-shadow:0 8px 22px rgba(0,0,0,.4);border:0;cursor:pointer}
+.psend:hover{background:#fff;transform:translateY(-2px);filter:none}
+.psend svg{width:20px;height:20px}
+.pbars{display:inline-flex;gap:3px;align-items:flex-end;height:22px;padding-left:2px}
+.pbars i{width:3px;height:4px;background:var(--brand);border-radius:2px;display:inline-block;transition:height .08s}
+
+/* === card de benefício (estilo BeneficioFiscalCard) === */
+.fcard{background:#0b1220;border:1px solid rgba(148,163,184,.22);border-radius:18px;overflow:hidden;box-shadow:0 16px 44px rgba(0,0,0,.45);margin-top:16px;animation:pop .3s ease}
+.fhead{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:22px 24px;border-bottom:1px solid rgba(148,163,184,.18)}
+.fname{font-size:32px;font-weight:800;letter-spacing:-.5px;color:#fff;line-height:1.1;text-transform:uppercase}
+.fsub{color:#7d8aa5;font-size:13px;margin-top:5px}
+.fbadge{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:10px 16px;font-weight:600;font-size:13px;background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.4);color:#4ade80;white-space:nowrap}
+.fbadge.off{background:rgba(240,90,70,.14);border-color:rgba(240,90,70,.4);color:#f0857a}
+.fsec{padding:20px 24px;border-bottom:1px solid rgba(148,163,184,.18)}
+.ftitle{font-size:17px;font-weight:700;color:#fff;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+.ftitle .n{width:22px;height:22px;border-radius:7px;background:linear-gradient(180deg,var(--brand),var(--brand2));display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.fopgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}
+.fop{text-align:left;background:#0f172a;border:1px solid rgba(148,163,184,.22);border-radius:14px;padding:16px;transition:.15s}
+.fop.on{border-color:var(--brand);background:#111a30;box-shadow:0 0 0 1px var(--brand) inset}
+.fop.na{border-color:rgba(240,199,97,.5)}
+.fop .fico{margin-bottom:10px;width:44px;height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(145deg,rgba(59,91,217,.20),rgba(31,61,188,.10));border:1px solid rgba(59,91,217,.3)}
+.fop .fico svg{width:24px;height:24px;fill:none;stroke:#8fb6f0;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fop.on .fico{background:linear-gradient(145deg,var(--brand),var(--brand2));border-color:transparent;box-shadow:0 4px 14px var(--glow)}
+.fop.on .fico svg{stroke:#fff}
+.fop.na .fico svg{stroke:#f0c761}
+.fbadge svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.fop .fon{font-weight:700;color:#fff;font-size:14px}
+.fop .fos{color:#7d8aa5;font-size:12px;margin-top:2px}
+.fop .fcf{margin-top:12px;font-size:21px;font-weight:800;color:#7c9bff}
+.fop.na .fcf{color:#f0c761;font-size:15px}
+.fop .fna{color:#f0857a;font-size:11px;margin-top:8px;line-height:1.4}
+.fopsplit{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:820px){.fopsplit{grid-template-columns:2fr 1fr}}
+.fresumo{background:rgba(6,78,59,.55);border:1px solid rgba(34,197,94,.35);border-radius:14px;padding:18px}
+.fresumo .fl{color:#4ade80;font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.fresumo .fb{font-size:46px;font-weight:900;color:#4ade80;line-height:1;margin-top:8px}
+.fresumo .ft{color:#a7f3d0;font-size:12px;margin-top:10px;line-height:1.5}
+.fresumo.na{background:rgba(120,53,15,.25);border-color:rgba(240,199,97,.35)}
+.fresumo.na .fl,.fresumo.na .fb{color:#f0c761}.fresumo.na .ft{color:#fde8b3}
+.fstat{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px}
+.fstat .fs{background:#0f172a;border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px}
+.fstat .fs .k{color:#7d8aa5;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.fstat .fs .v{color:#fff;font-size:18px;font-weight:800;margin-top:6px}
+.fstat .fs .s{color:#6b7688;font-size:11px;margin-top:2px}
+.fnota{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:10px}
+.fnota .fn{display:flex;align-items:center;gap:10px;background:#0f172a;border:1px solid rgba(148,163,184,.18);border-radius:10px;padding:12px}
+.fnota .fn .ck{color:#4ade80;flex:none;font-weight:800}
+.fcond{display:flex;flex-direction:column;gap:9px}
+.fcrow{display:flex;gap:10px;align-items:flex-start;background:#0f172a;border:1px solid rgba(148,163,184,.18);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.45}
+.fcrow .fci{flex:none;font-size:14px;line-height:1.4}
+.fcrow .fci.ok{color:#4ade80}
+.fcrow .fci.al{color:#f0c761}
+.fcrow .fci.in{color:#7c9bff}
+.fcver{border-radius:10px;padding:11px 13px;font-size:13px;font-weight:600;line-height:1.5}
+.fcver.ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:#a7f3d0}
+.fcver.no{background:rgba(240,199,97,.12);border:1px solid rgba(240,199,97,.45);color:#fde8b3}
+
+
+/* checklist elegibilidade */
+.eqchk{accent-color:var(--brand)}
+/* ============ BENEFÍCIOS — REDESIGN (segmentos no topo + grid filtros/lista + gaveta) ============ */
+#p-beneficios{padding-top:2px}
+/* Abas de segmento no topo */
+.ben-segtabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px;padding-bottom:14px;border-bottom:1px solid var(--line);overflow-x:auto}
+.ben-segtab{background:rgba(255,255,255,.04);color:var(--mut);border:1px solid var(--line);padding:9px 16px;border-radius:999px;cursor:pointer;font-weight:600;font-size:13px;transition:.2s;white-space:nowrap;box-shadow:none}
+.ben-segtab:hover{color:var(--ink);border-color:var(--line2);transform:none;filter:none}
+.ben-segtab.active{background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;border-color:transparent;box-shadow:0 4px 16px var(--glow)}
+/* Grid principal: 280px filtros + 1fr lista */
+.ben-page{display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start}
+@media(max-width:820px){.ben-page{grid-template-columns:1fr}.ben-segtabs{flex-wrap:nowrap}}
+/* Painel de filtros */
+.filter-panel{background:var(--glass2);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:14px;padding:18px;position:sticky;top:78px}
+.filter-panel h3{font-size:14px;font-weight:700;color:var(--ink);margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.filter-panel h4{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px}
+.search-input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:rgba(8,11,18,.5);color:#fff;font-size:13px;box-sizing:border-box}
+.search-input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--glow)}
+.ben-checkgroup{display:flex;flex-direction:column;gap:2px}
+.ben-check{display:flex;align-items:flex-start;gap:9px;color:var(--ink);font-size:13px;cursor:pointer;padding:7px 8px;border-radius:8px;transition:.15s;margin:0;text-transform:none;letter-spacing:0}
+.ben-check:hover{background:rgba(255,255,255,.04)}
+.ben-check input{accent-color:var(--brand);margin-top:2px;width:auto}
+.ben-check .bc-count{margin-left:auto;color:var(--mut);font-size:12px;font-variant-numeric:tabular-nums}
+.ben-clear{width:100%;margin-top:16px;background:transparent;border:1px solid var(--line2);color:var(--mut);padding:9px;border-radius:8px;font-size:12.5px;cursor:pointer;box-shadow:none}
+.ben-clear:hover{border-color:var(--brand);color:#9db8f5;background:rgba(59,91,217,.06);transform:none;filter:none}
+/* Lista */
+.benefits-container{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ben-topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.ben-topbar-title{font-size:20px;font-weight:800;color:#fff;margin:0;display:flex;align-items:center;gap:10px}
+.ben-topbar-count{background:rgba(59,91,217,.12);border:1px solid rgba(59,91,217,.3);color:#9db8f5;border-radius:999px;padding:5px 12px;font-weight:700;font-size:12.5px}
+/* Card benefício (compacto, linha) */
+.benefit-card{background:var(--glass2);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:12px;padding:14px 18px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;transition:border-color .2s}
+.benefit-card:hover{border-color:var(--brand)}
+@media(max-width:720px){.benefit-card{grid-template-columns:1fr}.btn-detail{width:100%}}
+.benefit-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.benefit-title{font-size:15px;font-weight:600;color:#fff;margin:0}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.badge-isencao{background:rgba(16,185,129,.16);color:#34d399;border:1px solid rgba(16,185,129,.35)}
+.badge-diferimento{background:rgba(245,158,11,.16);color:#fbbf24;border:1px solid rgba(245,158,11,.35)}
+.badge-credito{background:rgba(139,92,246,.16);color:#a78bfa;border:1px solid rgba(139,92,246,.35)}
+.badge-reducao{background:rgba(56,189,248,.16);color:#38bdf8;border:1px solid rgba(56,189,248,.35)}
+.badge-naoinc{background:rgba(148,163,184,.16);color:#94a3b8;border:1px solid rgba(148,163,184,.35)}
+.benefit-details{font-size:12.5px;color:var(--mut);display:flex;gap:18px;flex-wrap:wrap}
+.benefit-details strong{color:#b7c3d8}
+.btn-detail{background:transparent;border:1px solid var(--brand);color:#9db8f5;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:12.5px;white-space:nowrap;box-shadow:none}
+.btn-detail:hover{background:var(--brand);color:#fff;transform:none;filter:none}
+/* Empty */
+.ben-empty{text-align:center;padding:56px 20px;color:var(--mut)}
+.ben-empty h3{font-size:15px;font-weight:600;color:var(--ink);margin:0 0 6px}
+/* Paginação */
+.ben-pagination{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line);flex-wrap:wrap}
+.ben-page-btn{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--ink);width:38px;height:38px;border-radius:9px;font-size:13px;cursor:pointer;box-shadow:none;display:flex;align-items:center;justify-content:center;transition:.15s}
+.ben-page-btn:hover:not(:disabled){border-color:var(--brand);color:#9db8f5;transform:none;filter:none}
+.ben-page-btn:disabled{opacity:.4;cursor:not-allowed}
+.ben-page-btn.active{background:linear-gradient(180deg,var(--brand),var(--brand2));border-color:transparent;color:#fff}
+.ben-page-ellipsis{color:var(--mut);padding:0 8px}
+.ben-page-size{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:12.5px;margin-left:auto}
+.ben-page-size select{background:#0d1322;border:1px solid var(--line);color:var(--ink);padding:6px 10px;border-radius:8px;font-size:12.5px;outline:none;width:auto}
+/* Gaveta lateral (regra completa) */
+.ben-drawer-overlay{position:fixed;inset:0;background:rgba(3,6,12,.6);backdrop-filter:blur(3px);z-index:1000;opacity:0;pointer-events:none;transition:opacity .25s}
+.ben-drawer-overlay.on{opacity:1;pointer-events:auto}
+.ben-drawer{position:fixed;top:0;right:0;bottom:0;width:min(500px,100%);background:#10162a;border-left:1px solid var(--line2);box-shadow:-20px 0 60px rgba(0,0,0,.5);transform:translateX(100%);transition:transform .28s ease;display:flex;flex-direction:column;z-index:1001}
+.ben-drawer.on{transform:none}
+.ben-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.ben-drawer-title{font-size:16px;font-weight:700;color:#fff;margin:0;line-height:1.35}
+.ben-drawer-close{background:transparent;border:none;color:var(--mut);padding:6px;border-radius:8px;cursor:pointer;box-shadow:none;display:flex}
+.ben-drawer-close:hover{color:#fff;background:rgba(255,255,255,.06);transform:none;filter:none}
+.ben-drawer-body{padding:20px 22px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;flex:1}
+.ben-drawer-field{display:flex;flex-direction:column;gap:6px}
+.ben-drawer-label{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+.ben-drawer-value{font-size:13.5px;color:#dfe6f1;line-height:1.55}
+.ben-drawer-value.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.ben-drawer-value.desc{white-space:pre-wrap;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:12px 14px;max-height:300px;overflow-y:auto}
+.ben-drawer-foot{display:flex;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line)}
+
+</style></head><body>
+<canvas id="bgwave"></canvas>
+<header>
+ <h1><span class="dot"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M5 21h14"/><path d="M5 7h14"/><path d="M8 4.5 5 7"/><path d="m16 4.5 3 2.5"/><path d="M5 7 2.5 13a3.5 3.5 0 0 0 5 0z"/><path d="M19 7l2.5 6a3.5 3.5 0 0 1-5 0z"/></svg></span> Assistente Fiscal ICMS <span class="mut" style="font-weight:500">/ Maranhão</span></h1>
+ <div class="tabs">
+  <div class="tab on" data-p="chat"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg><span>Chat</span></div>
+  <div class="tab" data-p="consulta"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><span>Consulta</span></div>
+ </div>
+</header>
+<div class="wrap">
+ <div class="perfilbar">
+  <div><label>Cliente ativo (perfil)</label>
+   <select id="perfilSel" style="min-width:240px"><option value="">— nenhum (perguntar tudo) —</option></select></div>
+  <div class="small mut" id="perfilInfo" style="flex:1"></div>
+  <div class="small" id="status"></div>
+ </div>
+
+ <!-- CHAT -->
+ <div class="panel on" id="p-chat">
+  <div id="chatlog"></div>
+  <div class="chatin">
+   <input id="chatmsg" placeholder="Ex.: vou vender arroz aqui no MA... / qual o CFOP de tijolo pra outro estado?" autofocus>
+   <button id="chatsend">Enviar</button>
+  </div>
+  <p class="mut small">A IA pergunta só o que falta (usa o perfil ativo) e devolve o CFOP exato + tributação. Apoio — confirme com o contador.</p>
+ </div>
+
+ <!-- CONSULTA -->
+ <div class="panel" id="p-consulta">
+  <!-- RECURSOS EXTRAS: segmentos (remover este bloco desliga os atalhos) -->
+  <div id="cSeg" class="segbar"></div>
+  <!-- /RECURSOS EXTRAS -->
+  <div class="hero">
+   <h2 class="herotitle">Consulte a tributação no Maranhão</h2>
+   <p class="herosub">Diga o produto — nome, NCM ou CEST. Ajuste etapa, operação e regime e receba o CFOP exato + o benefício.</p>
+  </div>
+  <div class="pwrap">
+   <div class="pcard open" id="pcard">
+    <textarea id="cProd" class="ptxt" aria-label="Produto" placeholder="Descreva o produto…"></textarea>
+    <div class="pfade" id="ptopFade"></div>
+    <button type="button" class="ptrg" id="ptrg">arroz / 1006.30.21 / tijolo…</button>
+    <div class="pacts" id="pacts">
+     <div class="pre">
+      <button type="button" class="pact" id="pEtapaBtn">🛒 <span id="pEtapaLbl">Varejo</span></button>
+      <div class="pdrop" id="pEtapaDrop"></div>
+     </div>
+     <button type="button" class="pact" id="pOperBtn">🔄 <span id="pOperLbl">Operações</span></button>
+     <div class="pdrop" id="pOperDrop"></div>
+     <div class="pre">
+      <button type="button" class="pact" id="pRegBtn">🏢 <span id="pRegLbl">Lucro Presumido</span></button>
+      <div class="pdrop" id="pRegDrop"></div>
+     </div>
+     <button type="button" class="pact" id="pMic" title="Ditar o produto (voz)">🎤</button>
+     <div class="pbars" id="pbars"></div>
+    </div>
+    <button type="button" class="psend" id="pSend" aria-label="Consultar"></button>
+   </div>
+  </div>
+  <!-- selects ocultos: mantidos para o motor de consulta (JS os lê) -->
+  <select id="cEtapa" style="display:none"><option value="varejo">Varejo</option><option value="atacado">Atacado</option><option value="industria">Indústria / Importador</option><option value="produtor">Produtor Rural</option></select>
+  <select id="cOper" style="display:none"><optgroup label="Vendas dentro do MA (interna)"><option value="interna">Venda interna p/ empresa (contribuinte)</option><option value="interna_consumidor">Venda interna p/ consumidor final</option></optgroup><optgroup label="Vendas interestaduais"><option value="inter">Interestadual p/ empresa (contribuinte)</option><option value="consumidor">Interestadual p/ consumidor final não contribuinte</option></optgroup><optgroup label="Produtor rural"><option value="rural_interna">Saída interna da produção agropecuária</option><option value="rural_cooperativa">Remessa p/ cooperativa / industrialização</option><option value="rural_interestadual">Saída interestadual da produção</option></optgroup></select>
+  <select id="cReg" style="display:none"><option value="lucro_presumido">Lucro Presumido</option><option value="lucro_real">Lucro Real</option><option value="simples">Simples Nacional</option><option value="mei">MEI</option></select>
+  <button id="cBtn" style="display:none">Consultar</button>
+  <div id="cOut" style="max-width:820px;margin:16px auto 0"></div>
+ </div>
+
+<!-- BENEFÍCIOS POR SEGMENTO (RECURSOS EXTRAS) — segmentos no topo + grid filtros/lista + gaveta -->
+ </div>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let PERFIS=[], HIST=[];
+function api(path,opt){return fetch('/api'+path,opt).then(r=>r.json());}
+
+// tabs
+$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+ $$('.panel').forEach(p=>p.classList.remove('on'));$('#p-'+t.dataset.p).classList.add('on');
+ if(t.dataset.p==='perfis')renderPerfis();});
+
+// status + perfis
+api('/status').then(s=>{$('#status').innerHTML=s.chave_configurada?`<span class="ok">● IA on</span> · ${s.beneficios} itens · ${s.modelo}`:`<span class="warn">● IA off (configure .env)</span>`;});
+function loadPerfis(){return api('/perfis').then(p=>{PERFIS=p;const sel=$('#perfilSel');const cur=sel.value;
+ sel.innerHTML='<option value="">— nenhum (perguntar tudo) —</option>'+p.map(x=>`<option value="${x.id}">${x.nome||x.id}</option>`).join('');sel.value=cur;});}
+$('#perfilSel').onchange=()=>{const p=PERFIS.find(x=>x.id===$('#perfilSel').value);
+ $('#perfilInfo').textContent=p?`Etapa: ${p.tipo_contribuinte||'-'} · Regime: ${p.regime||'-'} · ${p.ramo||''} — a IA perguntará só: ${(p.perguntar||[]).join(', ')||'tudo'}`:'';
+ if(p){if(p.tipo_contribuinte)$('#cEtapa').value=p.tipo_contribuinte;if(p.regime)$('#cReg').value=p.regime;}};
+loadPerfis();
+
+// ---- CHAT ----
+function add(role,txt){const d=document.createElement('div');d.className='msg '+(role==='user'?'u':'a');d.textContent=txt;$('#chatlog').appendChild(d);$('#chatlog').scrollTop=1e9;return d;}
+add('assistant','Olá! Sou o assistente fiscal de ICMS/MA. Me diga:\n\n1. O produto (nome ou NCM)\n2. Se é varejo, atacado, indústria ou produtor rural\n3. Pra onde vai (aqui no MA, outro estado, consumidor final)\n4. Seu regime (lucro presumido, lucro real, simples nacional ou MEI)\n\nPode falar tudo de uma vez, ex.: "vou vender arroz aqui no MA, varejo, lucro presumido"\nOu vá informando aos poucos que eu pergunto o que faltar. 🙂');
+async function enviar(){const m=$('#chatmsg').value.trim();if(!m)return;$('#chatmsg').value='';add('user',m);
+ const wait=add('assistant','…');
+ try{const r=await api('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:m,historico:HIST,perfil_id:$('#perfilSel').value||null})});
+  wait.remove();
+  if(r.tipo==='erro'){add('assistant','⚠️ '+r.mensagem);return;}
+  add('assistant',r.mensagem);
+  HIST.push({role:'user',content:m});HIST.push({role:'assistant',content:r.mensagem});
+  if(r.tipo==='resultado'&&r.dados&&r.dados.itens&&r.dados.itens[0]){const it=r.dados.itens[0];
+   add('assistant','📌 CFOP exato: '+it.cfop_exato+' — '+it.cfop_significado+(it.cfop_confirmado?' ✅':' ⚠️ (confirmar)'));}
+ }catch(e){wait.remove();add('assistant','⚠️ Falha de conexão com o servidor.');}}
+$('#chatsend').onclick=enviar;$('#chatmsg').onkeydown=e=>{if(e.key==='Enter')enviar();};
+
+// ---- CONSULTA ----
+function reqHTML(it){
+ const escH=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const bl=it&&it.como_funciona;
+ if(bl&&bl.length){
+  return `<div style="margin-top:10px;background:var(--warnbg);border:1px solid #66532a;border-radius:8px;padding:10px 12px">
+   <b class="small" style="color:var(--warn)">⚖️ COMO FUNCIONA / REQUISITOS DO BENEFÍCIO</b>
+   ${bl.map(x=>{const v=x.d;const body=Array.isArray(v)
+     ?`<ul style="margin:4px 0 0 18px;padding:0">${v.map(i=>`<li class="small" style="margin:2px 0">✔ ${escH(i)}</li>`).join('')}</ul>`
+     :`<p class="small" style="margin:4px 0 0">${escH(v)}</p>`;
+    return `<div style="margin-top:8px"><b class="small mut">${x.t}</b>${body}</div>`;}).join('')}
+  </div>`;
+ }
+ if(!(it&&(it.base_legal||it.condicao||it.fonte||it.beneficio_resumo)))return'';
+ return `<div style="margin-top:10px;background:var(--warnbg);border:1px solid #66532a;border-radius:8px;padding:10px 12px">
+  <b class="small" style="color:var(--warn)">⚖️ REQUISITOS / CONDIÇÕES DO BENEFÍCIO</b>
+  ${it.beneficio_resumo?`<p class="small" style="margin:6px 0 0"><b>Benefício:</b> ${escH(it.beneficio_resumo)}</p>`:''}
+  ${it.condicao?`<p class="small" style="margin:6px 0 0"><b>Condição:</b> ${escH(it.condicao)}</p>`:''}
+  ${it.base_legal?`<p class="small" style="margin:6px 0 0"><b>Base legal:</b> ${escH(it.base_legal)}</p>`:''}
+  ${it.fonte?`<p class="small" style="margin:6px 0 0"><b>Fonte:</b> ${escH(it.fonte)}</p>`:''}
+ </div>`;
+}
+function condHTML(it){
+ const escH=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const e=it&&it.elegibilidade;
+ if(!e||!e.perguntas||!e.perguntas.length)return'';
+ const ic={'sim':'<span class="fci ok">✔</span>','alerta':'<span class="fci al">⚠️</span>','info':'<span class="fci in">ℹ️</span>'};
+ const rows=e.perguntas.map(p=>`<div class="fcrow">${ic[p.tipo]||ic.info}<span>${escH(p.q)}</span></div>`).join('');
+ const ok=e.se_todos_sim?`<div class="fcver ok">${escH(e.se_todos_sim)}</div>`:'';
+ const no=e.se_algum_nao?`<div class="fcver no">${escH(e.se_algum_nao)}</div>`:'';
+ return `<div class="fsec"><div class="ftitle"><span class="n">4</span> Condições para ter o benefício</div>
+  <div class="fcond">${rows}${ok}${no}</div></div>`;
+}
+function cardHTML(it,regimeRotulo){
+ const escH=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const pct=s=>{const m=String(s||'').match(/(\d+([.,]\d+)?)\s*%/);return m?m[1].replace('.',',')+'%':'';};
+ const naAll=!!it.nao_aplica;
+ const carga=pct(it.carga_final);
+ const regime=escH(it.regime_rotulo||regimeRotulo||'-');
+ const trib=escH(it.trib||'-');const campo=escH(it.campo_trib||'CST');
+ const reduc=escH(it.reducao_bc||'—');
+ const ops=(it.operacoes&&it.operacoes.length)?it.operacoes:[{
+  operacao:it.operacao||'interna',cfop_exato:it.cfop_exato||'',cfop_significado:it.cfop_significado||'',
+  cfop_confirmado:it.cfop_confirmado,nao_aplica:naAll,aviso_operacao:it.aviso_operacao||'',obs_produtor:it.obs_produtor||''}];
+ const SVG_EMP='<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4"/><path d="M8 7h.01M12 7h.01M16 7h.01M8 11h.01M12 11h.01M16 11h.01"/></svg>';
+ const SVG_PF='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
+ const SVG_TRK='<svg viewBox="0 0 24 24"><path d="M3 6h11v9H3z"/><path d="M14 9h4l3 3v3h-7z"/><circle cx="7.5" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg>';
+ const SVG_RUR='<svg viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 4 13V8h5a7 7 0 0 1 7 7v5z"/><path d="M11 20c0-6 3-10 9-12"/></svg>';
+ const SVG_OP='<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>';
+ const opMeta=o=>{const m={'interna':['Venda para Empresa','Contribuinte',SVG_EMP],'interna_consumidor':['Consumidor Final','Não contribuinte',SVG_PF],'inter':['Interestadual (Empresa)','Contribuinte',SVG_TRK],'consumidor':['Consumidor Final (Outro Estado)','Não contribuinte',SVG_PF],'rural_interna':['Produtor Rural (Interna)','Produção própria',SVG_RUR],'rural_cooperativa':['Produtor Rural (Cooperativa)','Industrialização',SVG_RUR],'rural_interestadual':['Produtor Rural (Interest.)','Produção própria',SVG_RUR]}[o]||['Operação','',SVG_OP];return m;};
+ let onSet=false;
+ const opCards=ops.map(o=>{const [n,s,ic]=opMeta(o.operacao);
+  const cls=o.nao_aplica?'na':(onSet?'':'on');
+  if(!o.nao_aplica)onSet=true;
+  const cf=escH(o.cfop_exato)||'-';
+  return `<div class="fop ${cls}"><div class="fico">${ic}</div><div class="fon">${escH(n)}</div><div class="fos">${s}</div>
+   <div class="fcf">${o.nao_aplica?'⚠️ não se aplica':'CFOP '+cf}</div>
+   ${o.obs_produtor?`<div class="fna">${escH(o.obs_produtor)}</div>`:''}
+   ${o.nao_aplica&&o.aviso_operacao?`<div class="fna">${escH(o.aviso_operacao)}</div>`:''}</div>`;}).join('');
+ const stRev=/(\b60\b|\b500\b)/.test(it.trib||'');
+ const stRet=/(^10|201\/202)/.test(it.trib||'');
+ let rlabel='ICMS Final', big, rtxt;
+ if(naAll){big='—';rtxt='O benefício não se aplica nesta operação — tribute normalmente.';}
+ else if(stRev){rlabel='ICMS (ST)';big=carga||'ST';rtxt='ICMS já retido na origem por substituição tributária. Na sua venda <b>não destaque nem recolha</b> ICMS.';}
+ else if(stRet){rlabel='ICMS Final';big=carga||'—';rtxt='Você é responsável pela retenção do ICMS-ST: destaca o ICMS próprio e retém o ST sobre a pauta (CEST correto).';}
+ else if(it.carga_final){
+  const cf=escH(it.carga_final);
+  const isCred=/cr[eé]dito/i.test(it.beneficio||'');
+  const isDif=/diferi/i.test(it.beneficio||'');
+  if(isDif){big=carga||'⏳';rtxt=`ICMS <b>diferido</b> — ${cf}. O imposto é adiado para a etapa seguinte da cadeia.`;}
+  else if(isCred){big=carga||'✓';rtxt=`Apuração com <b>crédito presumido/outorgado</b> — ${cf}. Veja "Como funciona".`;}
+  else if(carga){big=carga;rtxt=`Em vez de pagar 23%, esta operação tem carga efetiva de apenas <b>${carga}</b>.`;}
+  else{big='✓';rtxt=`Benefício aplicado: <b>${cf}</b>. Veja "Como funciona".`;}
+ }
+ else if(it.reducao_bc){big='23%';rtxt=`Base de cálculo <b>reduzida</b> (${reduc}) em vez dos 23% cheios.`;}
+ else{big='23%';rtxt='Operação tributada integralmente à alíquota interna de <b>23%</b>.';}
+ const cfg=[['Regime',regime,''],['CST/CSOSN',trib,campo],['Redução BC',reduc,''],['Alíquota','23%',''],['Carga Final',escH(it.carga_final||'—'),'']];
+ const cfgHTML=cfg.map(c=>`<div class="fs"><div class="k">${c[0]}</div><div class="v">${c[1]}</div>${c[2]?`<div class="s">${c[2]}</div>`:''}</div>`).join('');
+ const notaArr=[['CFOP correto'],['CST/CSOSN '+trib]];
+ if(it.reducao_bc)notaArr.push(['Base reduzida']);
+ if(it.carga_final)notaArr.push(['ICMS de '+carga]);
+ if(it.base_legal)notaArr.push(['Dispositivo Legal']);
+ notaArr.push(['Valor do benefício']);
+ const notaHTML=notaArr.map(n=>`<div class="fn"><span class="ck">✔</span><span>${escH(n[0])}</span></div>`).join('');
+ const badge=naAll?`<div class="fbadge off">✘ Não se aplica</div>`:`<div class="fbadge">✓ Benefício disponível</div>`;
+ const avisoAll=(naAll&&it.aviso_operacao)?`<div class="fna" style="margin:12px 24px 0">🚫 ${escH(it.aviso_operacao)}</div>`:'';
+ return `<div class="fcard">
+  <div class="fhead"><div>
+   <div class="fname">${escH(it.produto||'Produto')}</div>
+   <div class="fsub">NCM ${escH(it.ncm||'-')} ${it.ncm_classificado?'<span class="tag">classif.</span>':''} • ${escH(it.beneficio||'')} ${cestTxt(it)}</div></div>
+   ${badge}</div>
+  ${avisoAll}
+  <div class="fsec"><div class="ftitle"><span class="n">1</span> Tipo da Operação</div>
+   <div class="fopsplit"><div class="fopgrid">${opCards}</div>
+   <div class="fresumo ${naAll?'na':''}"><div class="fl">${rlabel}</div><div class="fb">${big}</div><div class="ft">${rtxt}</div></div></div></div>
+  <div class="fsec"><div class="ftitle"><span class="n">2</span> Configuração do Sistema</div>
+   <div class="fstat">${cfgHTML}</div></div>
+  <div class="fsec"><div class="ftitle"><span class="n">3</span> Sua Nota Fiscal deverá conter</div>
+   <div class="fnota">${notaHTML}</div></div>
+  ${condHTML(it)}
+  ${reqHTML(it)}
+ </div>`;
+}
+$('#cBtn').onclick=async()=>{const prod=$('#cProd').value.trim();if(!prod){return;}
+ $('#cOut').innerHTML='<p class="mut">Consultando…</p>';
+ const r=await api('/consulta',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({produto:prod,etapa:$('#cEtapa').value,operacao:$('#cOper').value,operacoes:[...pOps],regime:$('#cReg').value,perfil_id:$('#perfilSel').value||null,explicar_ia:true})});
+ if(!r.encontrou){const f=r.fallback;$('#cOut').innerHTML=`<div class="card" style="border-left-color:var(--bad)"><b class="warn">✘ ${f.titulo}</b><div class="kv"><div class="box"><div class="k">ICMS</div><div class="v">${f.icms}</div></div><div class="box"><div class="k">CFOP</div><div class="v cfopbig" style="font-size:18px">${f.cfop}</div></div><div class="box"><div class="k">Federal</div><div class="v">${f.federal}</div></div></div><p class="small mut">${f.obs}</p></div>`;return;}
+ let h='';
+ for(const it of r.itens){h+=cardHTML(it,r.consulta&&r.consulta.regime_rotulo);}
+ if(r.explicacao_ia)h+=`<div class="ia">🤖 <b>Análise da IA</b><div class="iamd">${mdLite(r.explicacao_ia)}</div></div>`;
+ $('#cOut').innerHTML=h;};
+
+// ---- busca de produto estilo PromptInput (adaptado; mantém cProd/cEtapa/cOper/cBtn) ----
+const OP_LABELS=[['interna','Interna (empresa)'],['interna_consumidor','Interna (consumidor)'],['inter','Interest. (empresa)'],['consumidor','Interest. (consumidor)'],['rural_interna','Rural interna'],['rural_cooperativa','Rural cooperativa'],['rural_interestadual','Rural interestadual']];
+const ETAPA_LABELS=[['varejo','Varejo'],['atacado','Atacado'],['industria','Indústria'],['produtor','Produtor Rural']];
+let isPOpen=false,pRec=false;
+const $p=$('#pcard'),$pt=$('#cProd'),$prg=$('#ptrg'),$acts=$('#pacts'),$ps=$('#pSend'),$pmic=$('#pMic'),
+ $pOp=$('#pOperBtn'),$pOpL=$('#pOperLbl'),$pODrop=$('#pOperDrop'),$pE=$('#pEtapaBtn'),$pEL=$('#pEtapaLbl'),$pDrop=$('#pEtapaDrop'),
+ $pf=$('#ptopFade'),$pb=$('#pbars');
+// operações selecionadas (multi-operação)
+const _curOp=$('#cOper').value||'interna';
+let pOps=new Set(OP_LABELS.some(x=>x[0]===_curOp)?[_curOp]:['interna']);
+function pOpNome(v){return (OP_LABELS.find(x=>x[0]===v)||[,'?'])[1];}
+function syncOperLabel(){
+ const arr=[...pOps];
+ $('#cOper').value=arr[0]||'interna';
+ $pOpL.textContent=arr.length===1?pOpNome(arr[0]):(arr.length+' operações');
+}
+function renderOper(){
+ $pODrop.innerHTML=OP_LABELS.map(x=>{const on=pOps.has(x[0]);
+  return `<button type="button" data-v="${x[0]}" class="${on?'sel':''}">${on?'✔ ':''}${x[1]}</button>`;}).join('');
+}
+$pOp.addEventListener('click',e=>{e.stopPropagation();$pODrop.classList.toggle('on');renderOper();});
+$pODrop.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const v=b.dataset.v;
+ if(pOps.has(v)){if(pOps.size>1)pOps.delete(v);}else{pOps.add(v);}
+ renderOper();syncOperLabel();});
+document.addEventListener('click',e=>{if(!$pOp.contains(e.target))$pODrop.classList.remove('on');});
+syncOperLabel();
+const P_ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>';
+function pIcon(){$ps.innerHTML=pRec?'⏹':P_ARROW;}
+function pResize(){if(!isPOpen)return;$pt.style.height='0px';const sh=$pt.scrollHeight;const nh=Math.max(76,Math.min(sh,160));$pt.style.height=nh+'px';$pf.style.top=(nh-18)+'px';$pf.style.opacity=sh>160?1:0;}
+function pOpen(){isPOpen=true;$p.classList.add('open');requestAnimationFrame(()=>{$pt.focus();});pResize();pIcon();}
+function pClose(){if($pt.value.trim()||pRec)return;isPOpen=false;$p.classList.remove('open');$pt.style.height='';$pf.style.opacity=0;}
+$prg.addEventListener('click',pOpen);
+$pt.addEventListener('focus',pOpen);
+$pt.addEventListener('input',()=>{pOpen();pResize();pIcon();});
+$pt.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if($pt.value.trim())$('#cBtn').click();}});
+$p.addEventListener('focusout',e=>{if($p.contains(e.relatedTarget))return;pClose();});
+// seletor de etapa (dropdown acima da busca)
+function renderEtapa(){$pDrop.innerHTML=ETAPA_LABELS.map(x=>`<button type="button" data-v="${x[0]}">${x[1]}</button>`).join('');}
+$pE.addEventListener('click',e=>{e.stopPropagation();$pDrop.classList.toggle('on');renderEtapa();});
+$pDrop.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$('#cEtapa').value=b.dataset.v;$pEL.textContent=b.textContent;$pDrop.classList.remove('on');});
+document.addEventListener('click',e=>{if(!$pE.contains(e.target))$pDrop.classList.remove('on');});
+// seletor de regime (dropdown)
+const REG_LABELS=[['lucro_presumido','Lucro Presumido'],['lucro_real','Lucro Real'],['simples','Simples Nacional'],['mei','MEI']];
+const $pR=$('#pRegBtn'),$pRL=$('#pRegLbl'),$pRDrop=$('#pRegDrop');
+function renderReg(){$pRDrop.innerHTML=REG_LABELS.map(x=>`<button type="button" data-v="${x[0]}">${x[1]}</button>`).join('');}
+$pR.addEventListener('click',e=>{e.stopPropagation();$pRDrop.classList.toggle('on');renderReg();});
+$pRDrop.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$('#cReg').value=b.dataset.v;$pRL.textContent=b.textContent;$pRDrop.classList.remove('on');});
+document.addEventListener('click',e=>{if(!$pR.contains(e.target))$pRDrop.classList.remove('on');});
+// rótulos iniciais das pílulas (a partir dos selects ocultos / perfil)
+function pSyncLabels(){const fe=ETAPA_LABELS.find(x=>x[0]===$('#cEtapa').value);if(fe)$pEL.textContent=fe[1];
+ if(OP_LABELS.some(x=>x[0]===$('#cOper').value))pOps=new Set([$('#cOper').value]);syncOperLabel();
+ const fr=REG_LABELS.find(x=>x[0]===$('#cReg').value);if(fr)$pRL.textContent=fr[1];}
+pSyncLabels();
+// ditado por voz
+let pRecTimer=null;
+function pStopRec(){if(pRecTimer){clearInterval(pRecTimer);pRecTimer=null;}pRec=false;$pb.innerHTML='';pIcon();$pmic.style.display='';if(window.__prec){try{window.__prec.stop();}catch(_){}window.__prec=null;}}
+function pStartRec(){if(pRec){pStopRec();return;}pOpen();pRec=true;pIcon();$pmic.style.display='none';
+ $pb.innerHTML='<i></i><i></i><i></i><i></i><i></i>';
+ pRecTimer=setInterval(()=>{[...$pb.children].forEach(c=>c.style.height=(4+Math.random()*18)+'px');},90);
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){setTimeout(()=>{pStopRec();alert('Seu navegador não suporta ditado por voz. Digite o produto.');},250);return;}
+ const rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang='pt-BR';
+ let base=$pt.value.trim();
+ rec.onresult=e=>{let fin='',interim='';for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript;else interim+=e.results[i][0].transcript;}if(fin)base=(base?base+' ':'')+fin;$pt.value=(base+(interim?' '+interim:'')).trim();$pt.dispatchEvent(new Event('input'));};
+ rec.onerror=()=>pStopRec();rec.onend=()=>pStopRec();
+ rec.start();window.__prec=rec;}
+$pmic.addEventListener('click',e=>{e.stopPropagation();pStartRec();});
+// botão principal (enviar / voz / parar)
+$ps.addEventListener('click',()=>{if(pRec){pStopRec();return;}if($pt.value.trim()){$('#cBtn').click();}else{$pt.focus();}});
+pIcon();
+// placeholder animado (efeito de digitação, como no hero de referência)
+const PH_WORDS=['arroz beneficiado','1006.30.21','medicamento genérico','pneu de automóvel','refrigerante lata','tijolo cerâmico','gado reprodutor','farinha de milho (flocão)','cerveja','adubo / fertilizante'];
+let phI=0,phC=0,phDel=false;
+function phTick(){
+ if(!$pt){return;}
+ if($pt.value){$pt.setAttribute('placeholder','Descreva o produto…');return setTimeout(phTick,700);}
+ const w=PH_WORDS[phI%PH_WORDS.length];
+ phC+=phDel?-1:1;
+ $pt.setAttribute('placeholder','ex.: '+w.slice(0,Math.max(0,phC)));
+ let d=phDel?45:85;
+ if(!phDel&&phC>=w.length){phDel=true;d=1500;}
+ else if(phDel&&phC<=0){phDel=false;phC=0;phI++;d=450;}
+ setTimeout(phTick,d);
+}
+phTick();
+
+// mini-markdown -> HTML (headings ###, **bold**, listas "- ", linhas)
+function mdLite(t){
+ if(!t)return'';
+ const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const inl=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+ const out=[];let ul=false;
+ for(let raw of t.split(/\r?\n/)){
+  const line=raw.trim();
+  if(!line){if(ul){out.push('</ul>');ul=false;}continue;}
+  if(/^#{2,4}\s+/.test(line)){if(ul){out.push('</ul>');ul=false;}out.push('<h4 style="margin:12px 0 4px;color:var(--warn)">'+inl(line.replace(/^#{2,4}\s+/,''))+'</h4>');continue;}
+  if(/^[-*]\s+/.test(line)){if(!ul){out.push('<ul style="margin:4px 0 4px 18px;padding:0">');ul=true;}out.push('<li style="margin:2px 0">'+inl(line.replace(/^[-*]\s+/,''))+'</li>');continue;}
+  if(ul){out.push('</ul>');ul=false;}
+  out.push('<p style="margin:4px 0">'+inl(line)+'</p>');
+ }
+ if(ul)out.push('</ul>');
+ return out.join('');
+}
+
+// CEST no cabeçalho: mostra o código; se for ST sem CEST válido, avisa "confirmar"
+function cestTxt(it){
+ const c=String(it.cest||'');
+ const valido=/\d{2}\.?\d{3}\.?\d{2}/.test(c) && /\d/.test(c);
+ if(valido) return '· CEST '+c;
+ const st=/substitu/i.test(it.beneficio||'');
+ if(st) return '· <span class="warn">CEST: confirmar (Conv. 142)</span>';
+ return '· <span class="mut">CEST: n/a (não é ST)</span>';
+}
+
+// ===== RECURSOS EXTRAS (checklist "vale pra você?" + segmentos) =====
+// Para remover: apague este bloco. Como o backend pode desligar (RECURSOS_EXTRAS=False),
+// tudo aqui só aparece quando os dados existem — então some sozinho.
+function elegHTML(el){
+ if(!el)return'';
+ const A=s=>String(s||'').replace(/"/g,'&quot;');
+ const sims=(el.perguntas||[]).filter(p=>p.tipo==='sim');
+ const rows=(el.perguntas||[]).map(p=>{
+  if(p.tipo==='sim')return `<label style="display:flex;gap:8px;align-items:flex-start;margin:5px 0;cursor:pointer;text-transform:none"><input type="checkbox" class="eqchk" onchange="avaliaEleg(this)" style="margin-top:3px;width:auto"><span class="small">${p.q}</span></label>`;
+  const cor=p.tipo==='alerta'?'var(--bad)':'var(--mut,#8a8a8a)';
+  return `<p class="small" style="margin:5px 0;color:${cor}">• ${p.q}</p>`;
+ }).join('');
+ const inicial=sims.length?el.se_algum_nao:el.se_todos_sim;
+ return `<div class="eleg" style="margin-top:10px;background:rgba(59,91,217,.10);border:1px solid var(--brand);border-radius:10px;padding:10px 12px">
+  <b class="small" style="color:#8fb6f0">🧭 ${el.titulo||'Esse benefício vale pra você?'}</b>
+  ${rows}
+  <div class="eqres small" data-sim="${A(el.se_todos_sim)}" data-nao="${A(el.se_algum_nao)}" style="margin-top:8px;padding:8px 10px;border-radius:6px;background:var(--warnbg);font-weight:600">${inicial}</div>
+ </div>`;
+}
+window.avaliaEleg=(chk)=>{
+ const box=chk.closest('.eleg');const chks=[...box.querySelectorAll('.eqchk')];
+ const all=chks.length>0&&chks.every(c=>c.checked);const res=box.querySelector('.eqres');
+ res.textContent=all?res.dataset.sim:res.dataset.nao;
+ res.style.background=all?'rgba(46,160,80,.18)':'var(--warnbg)';
+ res.style.color=all?'#7bd88f':'';
+};
+async function loadSegmentos(){
+ const box=$('#cSeg');if(!box)return;
+ let d;try{d=await api('/segmentos');}catch(e){box.style.display='none';return;}
+ const segs=(d&&d.segmentos)||[];
+ if(!segs.length){box.style.display='none';return;}
+ window.__SEGS=segs;
+ box.innerHTML='<div class="small mut" style="margin-bottom:6px">Atalho por segmento (opcional) — já entra no modo certo:</div>'+
+  '<div style="display:flex;flex-wrap:wrap;gap:6px">'+segs.map((s,i)=>`<button type="button" class="sec small" onclick="pickSeg(${i})">${s.label}</button>`).join('')+'</div><div id="segDet"></div>';
+}
+window.pickSeg=(i)=>{
+ const s=window.__SEGS&&window.__SEGS[i];if(!s)return;
+ $('#cEtapa').value=s.etapa;$('#cOper').value=s.operacao;
+ if(typeof pOp!=='undefined'){pOp=OP_LABELS.findIndex(x=>x[0]===$('#cOper').value);if(pOp<0)pOp=0;$pOpL.textContent=pOp>=0?OP_LABELS[pOp][1]:$('#cOper').value;const fe=ETAPA_LABELS.find(x=>x[0]===$('#cEtapa').value);if(fe)$pEL.textContent=fe[1];}
+ $('#segDet').innerHTML=`<div style="margin:8px 0 2px">${(s.alertas||[]).map(a=>`<div class="small warn">• ${a}</div>`).join('')}
+  <div class="small mut" style="margin:6px 0 3px">Produtos comuns (clique p/ consultar):</div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px">${(s.buscas||[]).map(b=>`<button type="button" class="sec small" onclick="quickBusca(this.textContent)">${b}</button>`).join('')}</div></div>`;
+};
+window.quickBusca=(t)=>{$('#cProd').value=t;$('#cProd').dispatchEvent(new Event('input'));$('#cBtn').click();};
+loadSegmentos();
+
+// ===== BENEFÍCIOS — REDESIGN (segmentos + filtros + cards + gaveta lateral) =====
+let __SEGPROD={},__bSegAtual=null,__bPage=1,__bPageSize=20,__bTipos={};
+const escH=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const _nrm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
+// Tipos de benefício econômico (ST fica de fora — regime, não benefício)
+const BEN_CONFIG={
+  'Isenção':   {cls:'isencao',     label:'Isenção'},
+  'Redução BC':{cls:'reducao',     label:'Redução BC'},
+  'Diferimento':{cls:'diferimento',label:'Diferimento'},
+  'Crédito Presumido':{cls:'credito',label:'Crédito Presumido'},
+  'Não incidência / Imunidade':{cls:'naoinc',label:'Não incidência'},
+};
+const BEN_ORDEM=['Redução BC','Isenção','Diferimento','Crédito Presumido','Não incidência / Imunidade'];
+
+function benKey(b){
+  const n=String(b||'').toLowerCase();
+  if(n.includes('diferi'))return'Diferimento';
+  if(n.includes('credito')||n.includes('creditamento'))return'Crédito Presumido';
+  if(n.includes('reduc'))return'Redução BC';
+  if(n.includes('isenc'))return'Isenção';
+  if(n.includes('nao inciden')||n.includes('imun'))return'Não incidência / Imunidade';
+  return null;
+}
+function benCfg(b){return BEN_CONFIG[benKey(b)]||{cls:'reducao',label:benKey(b)||String(b)};}
+
+async function loadSegList(){
+  const box=$('#bSeg');if(!box)return;
+  if(!window.__SEGS){try{const d=await api('/segmentos');window.__SEGS=(d&&d.segmentos)||[];}catch(e){window.__SEGS=[];}}
+  const segs=window.__SEGS||[];
+  if(!segs.length){box.innerHTML='<span class="small mut">Segmentos indisponíveis</span>';return;}
+  box.innerHTML=segs.map(s=>`<button type="button" role="tab" class="ben-segtab${!__bSegAtual&&s.id===segs[0].id?' active':''}" data-id="${s.id}" onclick="pickSegList('${s.id}')">${s.label}</button>`).join('');
+  if(!__bSegAtual&&segs.length)pickSegList(segs[0].id);
+}
+window.pickSegList=async(id)=>{
+  __bSegAtual=id;__bPage=1;
+  $$('#bSeg .ben-segtab').forEach(b=>b.classList.toggle('active',b.dataset.id===id));
+  $('#bOut').innerHTML='<div class="ben-empty"><h3>Carregando benefícios…</h3></div>';
+  if(!__SEGPROD[id]){try{const d=await api('/segmento_produtos?segmento='+encodeURIComponent(id));__SEGPROD[id]=(d&&d.itens)||[];}catch(e){__SEGPROD[id]=[];}}
+  buildTipoFiltros(id);
+  renderBeneficios(id);
+};
+
+function buildTipoFiltros(segId){
+  const todos=__SEGPROD[segId]||[];
+  const counts={};
+  for(const it of todos){const k=benKey(it.beneficio);if(k)counts[k]=(counts[k]||0)+1;}
+  const wrap=$('#bTipo');
+  if(!wrap)return;
+  if(!Object.keys(counts).length){wrap.innerHTML='<p class="small mut">Sem benefícios no segmento.</p>';return;}
+  wrap.innerHTML=BEN_ORDEM.filter(k=>counts[k]>0).map(k=>
+    `<label class="ben-check"><input type="checkbox" value="${k}"${__bTipos[k]?' checked':''} onchange="onTipoToggle('${k}',this.checked)"> ${BEN_CONFIG[k].label} <span class="bc-count">${counts[k]}</span></label>`
+  ).join('');
+}
+window.onTipoToggle=(k,on)=>{__bTipos[k]=on;__bPage=1;if(__bSegAtual)renderBeneficios(__bSegAtual);};
+
+// Pesquisa em tempo real
+let __bSearchDeb=null;
+function onSearchInput(){
+  clearTimeout(__bSearchDeb);
+  __bSearchDeb=setTimeout(()=>{__bPage=1;if(__bSegAtual)renderBeneficios(__bSegAtual);},120);
+}
+function itemMatches(it,q){
+  if(!q)return true;
+  return _nrm([it.produto,it.ncm,it.base_legal,it.condicao,it.beneficio_resumo].join(' ')).includes(q);
+}
+window.limparFiltros=()=>{
+  $('#bBusca').value='';
+  __bTipos={};
+  $$('#bTipo input[type=checkbox]').forEach(c=>c.checked=false);
+  __bPage=1;
+  if(__bSegAtual)renderBeneficios(__bSegAtual);
+};
+
+function renderBeneficios(segId){
+  const todos=__SEGPROD[segId]||[];
+  const q=_nrm(($('#bBusca').value||'').trim());
+  const tiposAtivos=Object.keys(__bTipos).filter(k=>__bTipos[k]);
+  const filtered=todos.filter(x=>{
+    if(tiposAtivos.length){const k=benKey(x.beneficio);if(!k||!tiposAtivos.includes(k))return false;}
+    return itemMatches(x,q);
+  });
+  $('#bCont').textContent=filtered.length+' '+(filtered.length===1?'benefício':'benefícios');
+  const box=$('#bOut');
+  if(!filtered.length){
+    box.innerHTML='<div class="ben-empty"><h3>Nenhum benefício encontrado</h3><p class="small mut">Ajuste os filtros ou a pesquisa.</p></div>';
+    $('#bPag').innerHTML='';
+    return;
+  }
+  const totalPages=Math.ceil(filtered.length/__bPageSize)||1;
+  if(__bPage>totalPages)__bPage=totalPages;
+  const start=(__bPage-1)*__bPageSize;
+  const pageItems=filtered.slice(start,start+__bPageSize);
+
+  let h='';
+  for(const it of pageItems){
+    const cfg=benCfg(it.beneficio);
+    const ncm=String(it.ncm||'').trim();
+    const baseLegal=String(it.base_legal||'').trim();
+    const reducao=String(it.reducao_bc||'').trim();
+    const carga=String(it.carga_final||'').trim();
+    let extras='';
+    if(reducao&&reducao!=='—')extras+=`<span><strong>Redução BC:</strong> ${escH(reducao)}</span>`;
+    if(carga&&carga!=='—')extras+=`<span><strong>Carga efetiva:</strong> ${escH(carga)}</span>`;
+    const dataAttr=JSON.stringify({
+      produto:it.produto,ncm:it.ncm,beneficio:it.beneficio,beneficio_resumo:it.beneficio_resumo,
+      reducao_bc:it.reducao_bc,carga_final:it.carga_final,condicao:it.condicao,
+      condicao_integral:it.condicao_integral,base_legal:it.base_legal,fonte:it.fonte
+    }).replace(/&/g,'&amp;').replace(/'/g,'&#39;');
+    h+=`<article class="benefit-card">
+      <div>
+        <div class="benefit-header"><span class="badge badge-${cfg.cls}">${cfg.label}</span><span class="benefit-title">${escH(it.produto)}</span></div>
+        <div class="benefit-details">
+          <span><strong>NCM:</strong> ${escH(ncm||'—')}</span>
+          <span><strong>Base Legal:</strong> ${escH(baseLegal||'—')}</span>${extras}
+        </div>
+      </div>
+      <button type="button" class="btn-detail" onclick='openDrawer("${dataAttr}")'>Ver Regra Completa</button>
+    </article>`;
+  }
+  box.innerHTML=h;
+  renderPagination(totalPages);
+}
+
+function renderPagination(totalPages){
+  const pg=$('#bPag');
+  if(totalPages<=1){pg.innerHTML='';return;}
+  let h='';
+  h+=`<button type="button" class="ben-page-btn${__bPage===1?' disabled':''}" onclick="goPage(${__bPage-1})"${__bPage===1?' disabled':''} aria-label="Página anterior"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+  const maxVis=5;
+  let start=Math.max(1,__bPage-Math.floor(maxVis/2));
+  let end=Math.min(totalPages,start+maxVis-1);
+  if(end-start+1<maxVis){start=Math.max(1,end-maxVis+1);}
+  if(start>1){h+=`<button type="button" class="ben-page-btn" onclick="goPage(1)">1</button>`;if(start>2)h+=`<span class="ben-page-ellipsis">…</span>`;}
+  for(let i=start;i<=end;i++){
+    h+=`<button type="button" class="ben-page-btn${i===__bPage?' active':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  if(end<totalPages){if(end<totalPages-1)h+=`<span class="ben-page-ellipsis">…</span>`;h+=`<button type="button" class="ben-page-btn" onclick="goPage(${totalPages})">${totalPages}</button>`;}
+  h+=`<button type="button" class="ben-page-btn${__bPage===totalPages?' disabled':''}" onclick="goPage(${__bPage+1})"${__bPage===totalPages?' disabled':''} aria-label="Próxima página"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>`;
+  h+=`<div class="ben-page-size"><span>Itens por página:</span><select id="bPageSize" onchange="changePageSize(this.value)"><option value="10"${__bPageSize===10?' selected':''}>10</option><option value="20"${__bPageSize===20?' selected':''}>20</option><option value="50"${__bPageSize===50?' selected':''}>50</option></select></div>`;
+  pg.innerHTML=h;
+}
+window.goPage=p=>{__bPage=p;if(__bSegAtual)renderBeneficios(__bSegAtual);};
+window.changePageSize=v=>{__bPageSize=parseInt(v);__bPage=1;if(__bSegAtual)renderBeneficios(__bSegAtual);};
+
+// Gaveta lateral com a regra completa
+function openDrawer(d){
+  const data=typeof d==='string'?JSON.parse(d):d;
+  const cfg=benCfg(data.beneficio);
+  const ncm=String(data.ncm||'—');
+  const reducao=String(data.reducao_bc||'').trim();
+  const carga=String(data.carga_final||'').trim();
+  const cond=String(data.condicao_integral||data.condicao||'').trim();
+  const base=String(data.base_legal||'').trim();
+  const fonte=String(data.fonte||'').trim();
+  $('#bDrawerTitle').textContent=data.produto;
+  $('#bDrawerBody').innerHTML=`
+    <div class="ben-drawer-field"><span class="ben-drawer-label">Produto</span><span class="ben-drawer-value">${escH(data.produto)}</span></div>
+    <div class="ben-drawer-field"><span class="ben-drawer-label">NCM</span><span class="ben-drawer-value code">${escH(ncm)}</span></div>
+    <div class="ben-drawer-field"><span class="ben-drawer-label">Benefício</span><span class="benefit-header" style="margin:0"><span class="badge badge-${cfg.cls}">${cfg.label}</span></span></div>
+    ${reducao?`<div class="ben-drawer-field"><span class="ben-drawer-label">Redução de base de cálculo</span><span class="ben-drawer-value">${escH(reducao)}</span></div>`:''}
+    ${carga?`<div class="ben-drawer-field"><span class="ben-drawer-label">Carga efetiva</span><span class="ben-drawer-value">${escH(carga)}</span></div>`:''}
+    ${data.beneficio_resumo?`<div class="ben-drawer-field"><span class="ben-drawer-label">Descrição</span><span class="ben-drawer-value">${escH(data.beneficio_resumo)}</span></div>`:''}
+    ${cond?`<div class="ben-drawer-field"><span class="ben-drawer-label">Regra / condições</span><span class="ben-drawer-value desc">${escH(cond)}</span></div>`:''}
+    ${base?`<div class="ben-drawer-field"><span class="ben-drawer-label">Base legal</span><span class="ben-drawer-value desc">${escH(base)}</span></div>`:''}
+    ${fonte?`<div class="ben-drawer-field"><span class="ben-drawer-label">Fonte do texto integral</span><span class="ben-drawer-value code">${escH(fonte)}</span></div>`:''}
+  `;
+  $('#bOverlay').classList.add('on');
+  $('#bDrawer').classList.add('on');
+  $('#bDrawer').setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+}
+function closeDrawer(){
+  $('#bOverlay').classList.remove('on');
+  $('#bDrawer').classList.remove('on');
+  $('#bDrawer').setAttribute('aria-hidden','true');
+  document.body.style.overflow='';
+}
+if($('#bDrawerClose'))$('#bDrawerClose').onclick=closeDrawer;
+if($('#bDrawerBtn'))$('#bDrawerBtn').onclick=closeDrawer;
+if($('#bOverlay'))$('#bOverlay').onclick=closeDrawer;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#bDrawer')&&$('#bDrawer').classList.contains('on'))closeDrawer();});
+if($('#bBusca'))$('#bBusca').addEventListener('input',onSearchInput);
+if($('#bLimpar'))$('#bLimpar').onclick=limparFiltros;
+
+// CTRL+K para focar busca
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();const inp=$('#bBusca');if(inp){inp.focus();inp.select();}}});
+
+// Inicializa
+loadSegList();
+
+// ---- Auditoria de NCM ----
+const AUD_EX="Arroz beneficiado tipo 1 ; 1006.30.21\nRefrigerante de cola lata 350ml ; 2202.10.00\nFarinha de milho flocada (flocão) ; 1104.19.00\nPneu novo de automóvel ; 4011.10.00\nNotebook 14 polegadas ; 0201.10.00\nCamiseta de algodão ; 9999.99.99\nLeite em pó integral ; 0402\nReprodutor bovino com registro ; 0102.21.10";
+function corDiag(t){t=t||'';if(t.indexOf('🔴')>=0)return'var(--bad)';if(t.indexOf('🟡')>=0)return'var(--warn)';if(t.indexOf('✅')>=0)return'#7bd88f';return'var(--mut,#8a8a8a)';}
+if($('#aEx'))$('#aEx').onclick=()=>{$('#aTxt').value=AUD_EX;};
+if($('#aBtn'))$('#aBtn').onclick=async()=>{
+ const texto=$('#aTxt').value.trim();
+ if(!texto){$('#aOut').innerHTML='<p class="mut small">Cole ao menos uma linha.</p>';return;}
+ const usarIA=$('#aIA')?$('#aIA').checked:false;
+ $('#aResumo').innerHTML='';$('#aOut').innerHTML='<p class="mut">Auditando…'+(usarIA?' (IA analisando as pendências, pode levar alguns segundos)':'')+'</p>';
+ const ctx={etapa:$('#aEtapa').value,operacao:$('#aOper').value,regime:$('#aReg').value};
+ let r;try{r=await api('/auditoria',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto,usar_ia:usarIA,...ctx})});}
+ catch(e){$('#aOut').innerHTML='<p class="warn">Erro ao auditar.</p>';return;}
+ if(!r.ok){$('#aOut').innerHTML='<p class="warn">'+(r.erro||'Indisponível')+'</p>';return;}
+ const s=r.resumo||{};
+ $('#aResumo').innerHTML=`<div style="display:flex;gap:8px;flex-wrap:wrap">
+   <span class="box" style="padding:6px 12px"><b style="color:#7bd88f">✅ ${s.ok||0}</b> ok</span>
+   <span class="box" style="padding:6px 12px"><b style="color:var(--warn)">🟡 ${s.atencao||0}</b> completar</span>
+   <span class="box" style="padding:6px 12px"><b style="color:var(--bad)">🔴 ${s.erro||0}</b> corrigir</span>
+   <span class="box" style="padding:6px 12px">total ${s.total||0}</span></div>`;
+ const esc=s=>String(s||'').replace(/"/g,'&quot;');
+ let h='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px"><thead><tr>'+
+  ['Produto','NCM inform.','Status','Descr. casa?','Sugestão IA (RGI)','Sugestão p/ semelhança','Benefício','CST','CFOP','CEST','Recomendação']
+   .map(x=>`<th style="text-align:left;padding:6px;border-bottom:1px solid #33455a;color:#9fb4cc">${x}</th>`).join('')+'</tr></thead><tbody>';
+ for(const it of r.linhas){
+  const sug=(it.sugestoes||[]).map(x=>`${x.ncm} (${x.score}%)`).join('<br>')||'—';
+  let ia='—';const S=it.sugestao_ia;
+  if(S){
+   if(S.ncm){const cc={alta:'#7bd88f',media:'var(--warn)',baixa:'var(--bad)'}[S.confianca]||'var(--mut,#8a8a8a)';
+    ia=`<b>${S.ncm}</b> <span style="color:${cc}">(${S.confianca||'?'})</span><br><span class="mut" title="${esc(S.justificativa)}" style="cursor:help">ⓘ por quê</span>`;}
+   else ia=`<span class="warn small">${S.aviso||'sem código válido'}</span>`;
+  }
+  h+='<tr style="border-bottom:1px solid #22303f">'+
+   `<td style="padding:6px">${it.descricao||''}</td>`+
+   `<td style="padding:6px;white-space:nowrap">${it.ncm_informado||'—'}</td>`+
+   `<td style="padding:6px;color:${corDiag(it.status_ncm)}">${it.status_ncm||''}</td>`+
+   `<td style="padding:6px;color:${corDiag(it.diag_aderencia)};white-space:nowrap">${it.aderencia?it.aderencia+' ':''}${it.diag_aderencia||''}</td>`+
+   `<td style="padding:6px;min-width:120px">${ia}</td>`+
+   `<td style="padding:6px">${sug}</td>`+
+   `<td style="padding:6px">${it.beneficio||'—'}</td>`+
+   `<td style="padding:6px">${it.cst||'—'}</td>`+
+   `<td style="padding:6px;white-space:nowrap">${it.cfop||'—'}</td>`+
+   `<td style="padding:6px;white-space:nowrap">${it.cest||'—'}</td>`+
+   `<td style="padding:6px">${it.recomendacao||''}</td></tr>`;
+ }
+ h+='</tbody></table><p class="small mut" style="margin-top:8px">'+(r.resumo&&r.resumo.nota_ia?r.resumo.nota_ia+' ':'')+'Validação do NCM = confiável. Aderência e sugestões (IA/semelhança) = recomendação a confirmar (RGI). Apoio — confirme com o contador.</p>';
+ $('#aOut').innerHTML=h;
+};
+
+// render de resultado vindo do UPLOAD (resumo + preview + download)
+function renderAudUpload(resumo, linhas, job){
+ $('#aResumo').innerHTML=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+   <span class="box" style="padding:6px 12px"><b style="color:#7bd88f">✅ ${resumo.ok||0}</b> ok</span>
+   <span class="box" style="padding:6px 12px"><b style="color:var(--warn)">🟡 ${resumo.atencao||0}</b> completar</span>
+   <span class="box" style="padding:6px 12px"><b style="color:var(--bad)">🔴 ${resumo.erro||0}</b> corrigir</span>
+   <span class="box" style="padding:6px 12px">total ${resumo.total||0}</span>
+   <a href="/api/auditoria_baixar?job=${job}"><button>⬇️ Baixar Excel completo</button></a></div>
+   <p class="small mut" style="margin:6px 0 0">Prévia das primeiras ${linhas.length} linhas (o Excel traz todas):</p>`;
+ let h='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px"><thead><tr>'+
+  ['Produto','NCM arq.','Status','Descr. casa?','NCM sugerido','Benefício','CST','CFOP','CEST','Recomendação']
+   .map(x=>`<th style="text-align:left;padding:6px;border-bottom:1px solid #33455a;color:#9fb4cc">${x}</th>`).join('')+'</tr></thead><tbody>';
+ for(const it of linhas){
+  const sug=(it.sugestoes||[]).map(x=>`${x.ncm} (${x.score}%)`).join('<br>')||'—';
+  h+='<tr style="border-bottom:1px solid #22303f">'+
+   `<td style="padding:6px">${it.descricao||''}</td>`+
+   `<td style="padding:6px;white-space:nowrap">${it.ncm_informado||'—'}</td>`+
+   `<td style="padding:6px;color:${corDiag(it.status_ncm)}">${it.status_ncm||''}</td>`+
+   `<td style="padding:6px;color:${corDiag(it.diag_aderencia)};white-space:nowrap">${it.aderencia?it.aderencia+' ':''}${it.diag_aderencia||''}</td>`+
+   `<td style="padding:6px">${sug}</td>`+
+   `<td style="padding:6px">${it.beneficio||'—'}</td>`+
+   `<td style="padding:6px">${it.cst||'—'}</td>`+
+   `<td style="padding:6px;white-space:nowrap">${it.cfop||'—'}</td>`+
+   `<td style="padding:6px;white-space:nowrap">${it.cest||'—'}</td>`+
+   `<td style="padding:6px">${it.recomendacao||''}</td></tr>`;
+ }
+ h+='</tbody></table>';
+ $('#aOut').innerHTML=h;
+}
+
+if($('#aUp'))$('#aUp').onclick=async()=>{
+ const f=$('#aFile').files[0];
+ if(!f){$('#aUpMsg').innerHTML='<span class="warn">Escolha um arquivo .xlsx primeiro.</span>';return;}
+ $('#aResumo').innerHTML='';$('#aOut').innerHTML='';
+ $('#aUpMsg').textContent='Enviando '+f.name+'…';
+ const fd=new FormData();fd.append('arquivo',f);
+ const qs='?etapa='+$('#aEtapa').value+'&operacao='+$('#aOper').value+'&regime='+$('#aReg').value;
+ let up;try{up=await fetch('/api/auditoria_upload'+qs,{method:'POST',body:fd}).then(r=>r.json());}
+ catch(e){$('#aUpMsg').innerHTML='<span class="warn">Falha no envio.</span>';return;}
+ if(!up.ok){$('#aUpMsg').innerHTML='<span class="warn">'+(up.erro||'Erro')+'</span>';return;}
+ const job=up.job;
+ const poll=async()=>{
+  let s;try{s=await api('/auditoria_status?job='+job);}catch(e){$('#aUpMsg').textContent='Aguardando…';setTimeout(poll,1500);return;}
+  if(s.estado==='processando'){$('#aUpMsg').textContent=`Auditando… ${s.progresso||0}/${s.total||'?'} produtos`;setTimeout(poll,1500);return;}
+  if(s.estado==='erro'){$('#aUpMsg').innerHTML='<span class="warn">Erro: '+(s.erro||'')+'</span>';return;}
+  if(s.estado==='pronto'){$('#aUpMsg').innerHTML='<span class="ok">✅ Auditoria concluída ('+s.resumo.total+' itens).</span>';renderAudUpload(s.resumo,s.preview||[],job);}
+ };
+ poll();
+};
+// ===== fim RECURSOS EXTRAS =====
+
+// ---- PERFIS ----
+function renderPerfis(){loadPerfis().then(()=>{$('#perfisList').innerHTML=PERFIS.length?PERFIS.map(p=>`<div class="perfilcard"><b>${p.nome||p.id}</b> <span class="tag">${p.tipo_contribuinte||'?'}</span> <span class="tag">${p.regime||'?'}</span> <span class="mut small">${p.ramo||''}</span><br><span class="small mut">IA pergunta: ${(p.perguntar||[]).join(', ')||'tudo'} · ${p.observacoes||''}</span><div style="margin-top:6px"><button class="sec small" onclick="editPerfil('${p.id}')">editar</button> <button class="sec small" onclick="delPerfil('${p.id}')">excluir</button></div></div>`).join(''):'<p class="mut">Nenhum cliente cadastrado ainda.</p>';});}
+window.editPerfil=id=>{const p=PERFIS.find(x=>x.id===id);if(!p)return;$('#fId').value=p.id;$('#fNome').value=p.nome||'';$('#fRamo').value=p.ramo||'';$('#fTipo').value=p.tipo_contribuinte||'';$('#fReg').value=p.regime||'';$('#fOper').value=p.operacoes_habituais||'';$('#fObs').value=p.observacoes||'';$$('.perg').forEach(c=>c.checked=(p.perguntar||[]).includes(c.value));};
+window.delPerfil=id=>{if(confirm('Excluir este cliente?'))api('/perfis/'+id,{method:'DELETE'}).then(renderPerfis).then(loadPerfis);};
+if($('#pNew'))$('#pNew').onclick=()=>{['fId','fNome','fRamo','fOper','fObs'].forEach(i=>$('#'+i).value='');$('#fTipo').value='';$('#fReg').value='';};
+if($('#pSave'))$('#pSave').onclick=async()=>{const body={id:$('#fId').value||null,nome:$('#fNome').value,ramo:$('#fRamo').value,tipo_contribuinte:$('#fTipo').value,regime:$('#fReg').value,operacoes_habituais:$('#fOper').value,observacoes:$('#fObs').value,perguntar:$$('.perg').filter(c=>c.checked).map(c=>c.value)};
+ if(!body.nome){alert('Informe o nome do cliente');return;}
+ await api('/perfis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});$('#pNew').click();renderPerfis();loadPerfis();};
+
+// ---- fundo animado (ondas de barras, estilo hero) ----
+(function(){
+ const c=document.getElementById('bgwave');if(!c)return;const ctx=c.getContext('2d');let w,h,dpr;
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ function size(){dpr=Math.min(window.devicePixelRatio||1,2);w=c.width=Math.floor(innerWidth*dpr);h=c.height=Math.floor(innerHeight*dpr);c.style.width=innerWidth+'px';c.style.height=innerHeight+'px';}
+ size();addEventListener('resize',size);let t=0;
+ function draw(){
+  ctx.clearRect(0,0,w,h);const bw=13*dpr,gap=11*dpr,n=Math.ceil(w/(bw+gap))+1,baseY=h+2*dpr;
+  ctx.globalCompositeOperation='lighter';
+  for(let i=0;i<n;i++){const x=i*(bw+gap),p=i/n;
+   const amp=(Math.sin(t*0.6+p*6.3)*0.5+0.5)*(Math.sin(t*0.22+p*3.1)*0.5+0.5);
+   const bh=(24+amp*230)*dpr,skew=bh*0.14;
+   const g=ctx.createLinearGradient(0,baseY-bh,0,baseY);
+   g.addColorStop(0,'rgba(59,91,217,0)');g.addColorStop(1,'rgba(31,61,188,0.5)');
+   ctx.fillStyle=g;ctx.beginPath();
+   ctx.moveTo(x,baseY);ctx.lineTo(x+bw,baseY);ctx.lineTo(x+bw+skew,baseY-bh);ctx.lineTo(x+skew,baseY-bh);ctx.closePath();ctx.fill();
+  }
+  ctx.globalCompositeOperation='source-over';
+ }
+ if(reduce){draw();return;}
+ function loop(){t+=0.016;draw();requestAnimationFrame(loop);}loop();
+})();
+</script></body></html>

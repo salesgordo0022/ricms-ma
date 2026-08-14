@@ -1,0 +1,35 @@
+# Segredos
+.env
+perfis.json
+
+# Ambiente local
+.venv/
+__pycache__/
+*.pyc
+
+# Logs
+server.log
+uvicorn.log
+uvicorn.log.out
+uvicorn_run.log
+
+# Artefatos do Windows/Office
+~$*
+
+# Scripts de build/one-off (NÃO vão pro servidor)
+data/*.bak*
+data/add_faltantes.py
+data/add_gado_44.py
+data/add_reprodutores.py
+data/add_sheets.py
+data/assign_ncm_novos.py
+data/build_auditoria_base.py
+data/build_xlsx_limpo.py
+data/clean_base.py
+data/explode_grupos.py
+data/faltantes_anexos.py
+data/fix_cest.py
+data/fix_escopo_ncm.py
+data/fix_reprodutores_legal.py
+data/gen_como_funciona.py
+data/run_estoque.py

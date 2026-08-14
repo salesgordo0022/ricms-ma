@@ -1,0 +1,26 @@
+ASSISTENTE FISCAL ICMS/MA - COMO RODAR
+
+1) Instalar dependencias (uma vez):
+   pip install -r requirements.txt
+
+2) Rodar o servidor:
+   python -m uvicorn app:app --host 127.0.0.1 --port 8000
+
+3) Abrir no navegador:
+   http://127.0.0.1:8000
+
+IA / CHAVE (fica SO no servidor, no arquivo .env - o navegador NUNCA ve a chave):
+- O provedor e detectado pela chave:
+    GROQ_API_KEY=gsk_...        -> usa a Groq (rapida). Modelo em GROQ_MODEL (padrao: llama-3.3-70b-versatile)
+    OPENROUTER_API_KEY=sk-or-...-> usa a OpenRouter. Modelo em OPENROUTER_MODEL
+- Se as duas estiverem preenchidas, a Groq tem prioridade.
+- Modelos Groq uteis: llama-3.3-70b-versatile (bom), llama-3.1-8b-instant (mais rapido/barato).
+
+SEGURANCA: a chave colada no chat deve ser considerada exposta.
+Gere uma nova em https://console.groq.com/keys e substitua no .env.
+
+COMO FUNCIONA:
+- O cliente digita o produto (nome/NCM) em linguagem natural no Chat.
+- A IA entende a operacao/destino/regime e pergunta SO o que faltar (usa o Perfil do cliente p/ perguntar menos).
+- O motor busca na base local (2.973 itens) e resolve o CFOP EXATO + CST/CSOSN + carga.
+- A IA explica, usando SOMENTE os dados da base (guard-rail: nao inventa).
