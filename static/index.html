@@ -404,23 +404,46 @@ $$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('o
  $$('.panel').forEach(p=>p.classList.remove('on'));$('#p-'+t.dataset.p).classList.add('on');
  if(t.dataset.p==='perfis')renderPerfis();});
 
-// ---- ABA LEGISWEB (fonte oficial: ICMS + Reforma) ----
-function lwIcmsRender(res){
+// ---- ABA LEGISWEB (fonte oficial: dados convertidos p/ o card rico) ----
+function lwCstMap(cat){const c=(cat||'').toLowerCase();
+ if(c.includes('isen'))return {cst:'40',csosn:'103/300/400',carga:'0%',rot:'ICMS Final',big:'0%',na:false,txt:'Operação ISENTA de ICMS — emita com CST 40 (Simples: CSOSN 103/300/400). Não aproveite crédito na entrada.'};
+ if(c.includes('reduc')||c.includes('reduç')||c.includes('base'))return {cst:'20',csosn:'900',carga:'reduzida',rot:'ICMS Final',big:'Reduzida',na:false,txt:'REDUÇÃO de base de cálculo — use o CST 20 e a carga do dispositivo; guarde a base legal na escrita fiscal.'};
+ if(c.includes('diferi'))return {cst:'51',csosn:'900',carga:'diferido',rot:'ICMS',big:'Diferido',na:false,txt:'DIFERIMENTO — sem destaque agora (CST 51); o imposto é recolhido na etapa seguinte da cadeia.'};
+ if(c.includes('credit')||c.includes('crédit')||c.includes('outorg'))return {cst:'00/90',csosn:'900',carga:'crédito',rot:'ICMS',big:'Crédito',na:false,txt:'CRÉDITO PRESUMIDO/OUTORGADO — escriture o crédito conforme o percentual do dispositivo.'};
+ if(c.includes('substitu'))return {cst:'60',csosn:'500',carga:'ST',rot:'ICMS (ST)',big:'ST',na:false,txt:'SUBSTITUIÇÃO TRIBUTÁRIA — se já retido, revenda com CST 60 (CSOSN 500 no Simples), sem novo destaque.'};
+ return {cst:'00',csosn:'102',carga:'23%',rot:'ICMS Final',big:'23%',na:true,txt:'Sem benefício específico: tribute normalmente (CST 00, alíquota interna 23%).'};
+}
+function lwCfopMap(oper){const m={
+ interna_consumidor:['1.101 / 1.102','5.101 / 5.102','Venda interna a consumidor final'],
+ interna:['1.101 / 1.102','5.101 / 5.102','Venda interna p/ empresa'],
+ inter:['2.101 / 2.102','6.101 / 6.102','Venda interestadual p/ empresa'],
+ consumidor:['2.101 / 2.102','6.108 / 6.107','Venda interestadual a consumidor final']};
+ return m[oper]||m.interna;}
+// CONVERSOR: 1 item da LegisWeb -> card rico (mesmo modelo do sistema local)
+function lwOficialCard(it, oper){
+ const cat=it._categoria||'Benefício'; const m=lwCstMap(cat); const cf=lwCfopMap(oper);
+ const vig=it.vigencia_fim?`até ${escH(it.vigencia_fim)}`:'—';
+ const cfg=[['Fonte','LegisWeb (oficial)'],['CST ICMS',m.cst],['CSOSN',m.csosn],['CFOP saída',cf[1]],['Carga',m.carga],['Vigência',vig]];
+ if(it.cbenef)cfg.push(['CBENEF',it.cbenef]);
+ const cfgHTML=cfg.map(c=>`<div class="fs"><div class="k">${escH(c[0])}</div><div class="v" style="font-size:15px">${escH(c[1])}</div></div>`).join('');
+ const nota=['CFOP '+cf[1],'CST/CSOSN '+m.cst,'Base legal: '+(it.desc_base_legal||'ver dispositivo'),'Indicar o dispositivo legal e o valor do benefício na NF'];
+ const notaHTML=nota.map(n=>`<div class="fn"><span class="ck">✔</span><span>${escH(n)}</span></div>`).join('');
+ const badge=m.na?`<div class="fbadge off">✘ Tributação normal</div>`:`<div class="fbadge">✓ Benefício disponível</div>`;
+ return `<div class="fcard">
+  <div class="fhead"><div><div class="fname">${escH(it.descricao||'Produto')}</div><div class="fsub">${escH(cat)} • fonte oficial LegisWeb${it.ncm?(' • NCM '+escH(it.ncm)):''}</div></div>${badge}</div>
+  <div class="fsec"><div class="ftitle"><span class="n">1</span> Tipo da Operação</div>
+   <div class="fopsplit"><div class="fopgrid"><div class="box"><div class="k">${escH(cf[2])}</div><div class="v cfopbig">CFOP ${escH(cf[1])}</div></div></div>
+   <div class="fresumo ${m.na?'na':''}"><div class="fl">${escH(m.rot)}</div><div class="fb">${escH(m.big)}</div><div class="ft">${escH(m.txt)}</div></div></div></div>
+  <div class="fsec"><div class="ftitle"><span class="n">2</span> Configuração do Sistema</div><div class="fstat">${cfgHTML}</div></div>
+  <div class="fsec"><div class="ftitle"><span class="n">3</span> Sua Nota Fiscal deverá conter</div><div class="fnota">${notaHTML}</div></div>
+  ${it.desc_base_legal?`<div class="fsec"><div class="ftitle"><span class="n">4</span> Base legal / condições</div><div class="fnota"><div class="fn"><span class="ck">📖</span><span>${escH(it.desc_base_legal)}</span></div></div></div>`:''}
+ </div>`;
+}
+function lwIcmsRender(res, oper){
  if(!res||res.ok===false||res.erro)return `<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div>`;
  const its=res.itens||[];
  if(!its.length)return `<div class="mut small">Nenhum benefício de ICMS encontrado em ${escH(res.uf||'MA')} (tente por descrição).</div>`;
- return its.map(it=>{
-  const cat=it._categoria||''; const cor=benCor(cat);
-  const vig=it.vigencia_fim?`<span class="rc-tag">📅 até ${escH(it.vigencia_fim)}</span>`:'';
-  const cb=it.cbenef?`<span class="rc-tag">CBENEF ${escH(it.cbenef)}</span>`:'';
-  const pl=benPlain(cat);
-  return `<div class="rcard" style="border-left-color:${cor}">
-   <div class="rc-head"><span class="rc-badge" style="background:${cor}">${escH(cat||'Benefício')}</span>${vig}${cb}</div>
-   <div class="rc-prod">${escH(it.descricao||'')}</div>
-   ${pl?`<div class="rc-plain">💡 ${escH(pl)}</div>`:''}
-   ${it.desc_base_legal?`<div class="rc-leg">📖 ${escH(it.desc_base_legal)}</div>`:''}
-  </div>`;
- }).join('');
+ return its.map(it=>lwOficialCard(it, oper||'interna_consumidor')).join('');
 }
 const LW_LABELS={codigo:'Código',descricao:'Descrição',ncm:'NCM',cest:'CEST',titulo:'Título',
  natureza:'Natureza',fluxo:'Fluxo',aliquota:'Alíquota',aliquota_pis:'PIS',aliquota_cofins:'COFINS',
@@ -444,46 +467,26 @@ function lwGtinRender(g){
  if(!g||g.ok===false||g.erro)return `<div class="reformabox"><div class="reformahd">🏷️ GTIN / Código de barras</div><div class="fna">⚠️ ${escH((g&&g.erro)||'indisponível')}</div><div class="small mut" style="margin-top:6px">A consulta por GTIN exige um certificado digital A1 cadastrado no LegisWeb (parâmetro cod_cert).</div></div>`;
  return `<div class="reformabox"><div class="reformahd">🏷️ GTIN ${escH(g.gtin||'')}</div><div class="box"><div><b>${escH(g.produto||'—')}</b></div><div class="small">NCM ${escH(g.ncm||'-')} • CEST ${escH(g.cest||'-')}</div></div><div class="small mut" style="margin-top:6px">Copie o NCM e consulte ICMS + Reforma.</div></div>`;
 }
-function lwGenRender(res,tipo){
- const hd=`<div class="reformahd">📋 ${escH(tipo)}</div>`;
- if(!res||res.ok===false||res.erro)return `<div class="reformabox">${hd}<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div></div>`;
- const its=res.itens||[];
- if(!its.length)return `<div class="reformabox">${hd}<div class="mut small">Nenhum registro encontrado.</div></div>`;
- let h=`<div class="reformabox">${hd}<div class="small mut">${its.length} registro(s) — fonte oficial LegisWeb</div>`;
- for(const it of its.slice(0,40)){
-  const linhas=Object.entries(it).filter(([k,v])=>v&&typeof v!=='object'&&!k.startsWith('_'))
-    .map(([k,v])=>`<div class="small"><b>${escH(k)}:</b> ${escH(String(v)).slice(0,400)}</div>`).join('');
-  h+=`<div class="box" style="margin:6px 0">${linhas||'<div class="small mut">(sem campos simples)</div>'}</div>`;
- }
- if(its.length>40)h+=`<div class="small mut">…e mais ${its.length-40} registro(s).</div>`;
- return h+'</div>';
-}
 async function lwBuscar(){
  const tipo=$('#lwTipo').value, val=$('#lwInput').value.trim();
  const isNum=/^[\d.\-\/\s]+$/.test(val);
  $('#lwGo').disabled=true;
  $('#lwOut').innerHTML='<p class="mut">Consultando fonte oficial (LegisWeb)…</p>';
  try{
-  if(tipo==='completa'){
+  if(tipo==='completa'||tipo==='icms'||tipo==='reforma'){
    if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
    const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
-   // 1) CARD COMPLETO do motor local (igual à aba Consulta: ICMS FINAL %, CFOP, CST, Nota Fiscal, Condições)
-   const r=await api('/consulta',{method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({produto:val,etapa:$('#lwEtapa').value,operacao:$('#lwOper').value,operacoes:[$('#lwOper').value],regime:$('#lwReg').value,explicar_ia:false})});
+   const oper=$('#lwOper').value;
    let h='';
-   if(r.encontrou){for(const it of r.itens){h+=cardHTML(it,r.consulta&&r.consulta.regime_rotulo);}}
-   else if(r.fallback){const f=r.fallback;h+=`<div class="fcard"><div class="fhead"><div><div class="fname">${escH(val)}</div><div class="fsub">${escH(f.titulo||'Sem benefício localizado')}</div></div><div class="fbadge off">✘ Tributação normal</div></div><div class="fsec"><div class="fstat"><div class="box"><div class="k">ICMS</div><div class="v">${escH(f.icms||'23%')}</div></div><div class="box"><div class="k">CFOP</div><div class="v cfopbig">${escH(f.cfop||'')}</div></div><div class="box"><div class="k">Federal</div><div class="v">${escH(f.federal||'')}</div></div></div><p class="small mut">${escH(f.obs||'')}</p></div></div>`;}
-   // 2) confirmação na fonte oficial + Reforma
-   const icms=await api('/legisweb?'+q);h+='<div class="reformabox"><div class="reformahd">📊 ICMS — confirmação na fonte oficial (LegisWeb)</div>'+lwIcmsRender(icms)+'</div>';
-   const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';
-   $('#lwOut').innerHTML=h;
-  }else if(tipo==='icms'||tipo==='reforma'){
-   if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
-   const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
-   let h='';
-   if(tipo==='icms'){const icms=await api('/legisweb?'+q);h+='<div class="reformabox"><div class="reformahd">📊 ICMS — benefícios oficiais (MA)</div>'+lwIcmsRender(icms)+'</div>';}
-   else{const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';}
-   $('#lwOut').innerHTML=h;
+   // ICMS oficial (LegisWeb) CONVERTIDO para o card rico
+   if(tipo!=='reforma'){
+    const icms=await api('/legisweb?'+q);
+    const cards=lwIcmsRender(icms,oper);
+    h+=cards;
+   }
+   // Reforma (IBS/CBS)
+   if(tipo!=='icms'){const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';}
+   $('#lwOut').innerHTML=h||'<div class="mut small">Nenhum resultado.</div>';
   }else if(tipo==='gtin'){
    if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite o código de barras (GTIN/EAN).</div>';$('#lwGo').disabled=false;return;}
    const g=await api('/gtin?gtin='+encodeURIComponent(val));
@@ -504,7 +507,7 @@ async function lwBuscar(){
 }
 $('#lwGo').onclick=lwBuscar;
 $('#lwInput').addEventListener('keydown',e=>{if(e.key==='Enter')lwBuscar();});
-function lwTogglePerfil(){const t=$('#lwTipo').value;$('#lwPerfil').style.display=(t==='completa')?'flex':'none';}
+function lwTogglePerfil(){const t=$('#lwTipo').value;$('#lwPerfil').style.display=(t==='completa'||t==='icms')?'flex':'none';}
 $('#lwTipo').onchange=lwTogglePerfil;lwTogglePerfil();
 
 // status + perfis
