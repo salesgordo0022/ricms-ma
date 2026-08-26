@@ -1305,9 +1305,20 @@ def _resposta_fallback(res, campos, etapa, regime):
 
 @app.get("/api/status")
 def status():
+    import os as _os
+    diag = {}
+    if legisweb:
+        diag = {
+            "token_presente": bool(legisweb.TOKEN),
+            "cliente_presente": bool(legisweb.CLIENTE),
+            "uf": legisweb.UF_PADRAO,
+            # nomes de variáveis LEGISWEB* que o servidor enxerga (revela erro de digitação; sem valores)
+            "vars_encontradas": sorted([k for k in _os.environ if k.upper().startswith("LEGISWEB")]),
+        }
     return {"ok": True, "beneficios": len(BENEF), "modelo": MODEL, "provedor": PROVIDER,
             "chave_configurada": bool(AI_KEY),
-            "legisweb": bool(legisweb and legisweb.disponivel())}
+            "legisweb": bool(legisweb and legisweb.disponivel()),
+            "legisweb_diag": diag}
 
 
 @app.get("/api/legisweb")
