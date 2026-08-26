@@ -267,17 +267,24 @@ table{border-collapse:collapse}
 .rc-obs{font-size:12px;color:#e0a800;margin-top:5px}
 .lwlist{display:flex;flex-direction:column;gap:8px}
 .lwrow{background:rgba(255,255,255,.03);border:1px solid var(--line);border-left:4px solid #2e75b6;border-radius:10px;padding:10px 13px}
-.filterbox{max-width:900px;margin:0 auto;background:var(--glass,rgba(255,255,255,.04));border:1px solid var(--line2,#2a2f3a);border-radius:18px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
-.fb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px}
-.fb-f{display:flex;flex-direction:column;gap:6px}
-.fb-f label{font-size:12px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-.fb-f select,.fb-search input{padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);font-size:15px}
-.opchecks{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
-.opck{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;cursor:pointer;user-select:none}
-.opck input{accent-color:var(--brand,#2e75b6)}
-.fb-search{display:flex;gap:10px;margin-top:16px}
+.filterbox{max-width:920px;margin:0 auto;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid var(--line2,#2a2f3a);border-radius:22px;padding:22px 24px;box-shadow:0 24px 60px rgba(0,0,0,.4);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.fb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:16px}
+.fb-f{display:flex;flex-direction:column;gap:7px;margin-bottom:2px}
+.fb-f label{font-size:11px;color:var(--mut);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.fb-f select,.fb-search input{padding:14px 40px 14px 15px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font-size:15px;font-weight:500;transition:.18s;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a94a6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 14px center;cursor:pointer}
+.fb-f select:hover,.fb-search input:hover{border-color:var(--line2)}
+.fb-f select:focus,.fb-search input:focus{outline:none;border-color:var(--brand,#2e75b6);box-shadow:0 0 0 3px var(--glow,rgba(46,117,182,.25))}
+.fb-search input{padding-right:15px;background-image:none;font-weight:400}
+.opchecks{display:flex;flex-wrap:wrap;gap:9px;margin-top:2px}
+.opck{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;user-select:none;transition:.15s}
+.opck:hover{border-color:var(--brand,#2e75b6);background:rgba(46,117,182,.10)}
+.opck:has(input:checked){background:linear-gradient(180deg,var(--brand),var(--brand2));border-color:transparent;color:#fff;box-shadow:0 4px 14px var(--glow)}
+.opck input{accent-color:#fff;width:15px;height:15px}
+.fb-search{display:flex;gap:12px;margin-top:18px}
 .fb-search input{flex:1}
-.fb-search button{padding:13px 28px;border:0;border-radius:12px;background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;font-weight:700;font-size:15px;cursor:pointer;white-space:nowrap}
+.fb-search button{padding:14px 32px;border:0;border-radius:14px;background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;font-weight:800;font-size:15px;cursor:pointer;white-space:nowrap;box-shadow:0 8px 22px var(--glow);transition:.15s}
+.fb-search button:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.fb-search button:active{transform:translateY(0)}
 </style></head><body>
 <canvas id="bgwave"></canvas>
 <header>
@@ -406,9 +413,9 @@ table{border-collapse:collapse}
    <div class="fb-grid" id="lwPerfil">
     <div class="fb-f"><label>Regime</label><select id="lwReg"><option value="lucro_presumido">Lucro Presumido</option><option value="lucro_real">Lucro Real</option><option value="simples">Simples Nacional</option><option value="mei">MEI</option></select></div>
     <div class="fb-f"><label>Etapa</label><select id="lwEtapa"><option value="varejo">Varejo</option><option value="atacado">Atacado</option><option value="industria">Indústria / Importador</option><option value="produtor">Produtor Rural</option></select></div>
-    <div class="fb-f"><label>Operação</label><select id="lwOper"><option value="interna_consumidor">Interna — consumidor final</option><option value="interna">Interna — empresa (contribuinte)</option><option value="inter">Interestadual — empresa</option><option value="consumidor">Interestadual — consumidor final</option></select></div>
    </div>
-   <div class="fb-search"><input id="lwInput" placeholder="produto, NCM, CFOP, CST, GTIN, CNPJ…"><button id="lwGo">🔎 Consultar</button></div>
+   <div class="fb-f" id="lwPerfilOps"><label>Operações (marque uma ou mais)</label><div id="lwOps" class="opchecks"></div></div>
+   <div class="fb-search"><input id="lwInput" placeholder="🔎 produto, NCM, CFOP, CST, GTIN, CNPJ…"><button id="lwGo">Consultar</button></div>
   </div>
   <div id="lwOut" style="max-width:900px;margin:18px auto 0"></div>
  </div>
@@ -520,8 +527,9 @@ async function lwBuscar(){
    if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
    const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
    // 1) CARD com % EXATO do nosso motor (percentuais certeiros p/ o ERP do cliente)
+   const _ops=lwSelOps();
    const r=await api('/consulta',{method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({produto:val,etapa:$('#lwEtapa').value,operacao:$('#lwOper').value,operacoes:[$('#lwOper').value],regime:$('#lwReg').value,explicar_ia:false})});
+     body:JSON.stringify({produto:val,etapa:$('#lwEtapa').value,operacao:_ops[0],operacoes:_ops,regime:$('#lwReg').value,explicar_ia:false})});
    let h='';
    if(r.encontrou){for(const it of r.itens){h+=cardHTML(it,r.consulta&&r.consulta.regime_rotulo);}}
    else if(r.fallback){const f=r.fallback;h+=`<div class="fcard"><div class="fhead"><div><div class="fname">${escH(val)}</div><div class="fsub">${escH(f.titulo||'Sem benefício localizado')}</div></div><div class="fbadge off">✘ Tributação normal</div></div><div class="fsec"><div class="fstat"><div class="fs"><div class="k">ICMS</div><div class="v">${escH(f.icms||'23%')}</div></div><div class="fs"><div class="k">CFOP</div><div class="v cfopbig">${escH(f.cfop||'')}</div></div></div></div></div>`;}
@@ -534,7 +542,7 @@ async function lwBuscar(){
    if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
    const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
    const icms=await api('/legisweb?'+q);
-   $('#lwOut').innerHTML=lwIcmsRender(icms,$('#lwOper').value);
+   $('#lwOut').innerHTML=lwIcmsRender(icms,lwSelOps()[0]);
   }else if(tipo==='reforma'){
    if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
    const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
@@ -559,7 +567,11 @@ async function lwBuscar(){
 }
 $('#lwGo').onclick=lwBuscar;
 $('#lwInput').addEventListener('keydown',e=>{if(e.key==='Enter')lwBuscar();});
-function lwTogglePerfil(){const t=$('#lwTipo').value;$('#lwPerfil').style.display=(t==='completa'||t==='icms')?'grid':'none';}
+const LW_OPS=[['interna_consumidor','Interna → consumidor'],['interna','Interna → empresa'],['inter','Interest. → empresa'],['consumidor','Interest. → consumidor'],['rural_interna','Rural interna'],['rural_interestadual','Rural interest.']];
+function lwRenderOps(){const el=$('#lwOps');if(!el)return;el.innerHTML=LW_OPS.map(o=>`<label class="opck"><input type="checkbox" value="${o[0]}"${o[0]==='interna_consumidor'?' checked':''}> ${o[1]}</label>`).join('');}
+function lwSelOps(){const a=[...document.querySelectorAll('#lwOps input:checked')].map(c=>c.value);return a.length?a:['interna_consumidor'];}
+lwRenderOps();
+function lwTogglePerfil(){const t=$('#lwTipo').value;const on=(t==='completa'||t==='icms');$('#lwPerfil').style.display=on?'grid':'none';const o=$('#lwPerfilOps');if(o)o.style.display=on?'':'none';}
 $('#lwTipo').onchange=lwTogglePerfil;lwTogglePerfil();
 
 // status + perfis
