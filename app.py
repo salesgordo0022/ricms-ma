@@ -108,7 +108,9 @@ def _lw_get(endpoint, **params):
         msg = str(data.get("mensagem") or data.get("erro") or "")
         if msg and "registros" not in data:
             return False, {"erro": msg}
-        if not isinstance(data.get("resposta"), list):
+        # 'resposta' pode ser lista (benefício ICMS), dict (reforma: resposta.ncm[]) ou
+        # string ("Nenhum resultado..."). Só a string vira lista vazia.
+        if isinstance(data.get("resposta"), str):
             data["resposta"] = []
     res = (True, data)
     _LW_CACHE[ckey] = res
@@ -133,8 +135,42 @@ def _lw_beneficios(ncm=None, descricao=None, codigo=None, estado=None, categoria
             "total": len(itens), "itens": itens, "erros": erros}
 
 
+def _lw_reforma(ncm=None, descricao=None):
+    """Benefícios da REFORMA TRIBUTÁRIA (IBS/CBS) por NCM (tipo-busca=1) ou descrição (=4)."""
+    if ncm:
+        ok, data = _lw_get("reforma_tributaria_beneficios", **{"tipo-busca": 1, "ncm": ncm})
+    else:
+        ok, data = _lw_get("reforma_tributaria_beneficios", **{"tipo-busca": 4, "descricao": descricao})
+    if not ok:
+        return {"ok": False, "erro": data.get("erro"), "itens": []}
+    resp = data.get("resposta")
+    itens = []
+    if isinstance(resp, dict):
+        for key in ("ncm", "nbs", "cnae", "descricao"):
+            itens.extend(resp.get(key) or [])
+    elif isinstance(resp, list):
+        itens = resp
+    # achatar p/ exibição
+    out = []
+    for it in itens:
+        item = it.get("item", {}) if isinstance(it, dict) else {}
+        ben = it.get("beneficio", {}) if isinstance(it, dict) else {}
+        red = it.get("reducoes", []) if isinstance(it, dict) else []
+        out.append({
+            "codigo": item.get("codigo", ""),
+            "descricao": item.get("item_descricao") or item.get("descricao", ""),
+            "tipo_beneficio": ben.get("tipo_beneficio", ""),
+            "aplicabilidade": item.get("aplicabilidade_descricao") or (it.get("detalhes", {}) or {}).get("aplicabilidade", ""),
+            "base_legal": item.get("base_legal") or (it.get("detalhes", {}) or {}).get("base_legal", ""),
+            "observacao": item.get("beneficio_observacao") or ben.get("observacao", ""),
+            "reducoes": [{"tipo": r.get("tipo_reducao", ""), "percentual": r.get("percentual", ""),
+                          "descricao": r.get("descricao", "")} for r in red],
+        })
+    return {"ok": True, "fonte": "LegisWeb — Reforma Tributária (IBS/CBS)", "total": len(out), "itens": out}
+
+
 legisweb = _types.SimpleNamespace(TOKEN=_LW_TOKEN, CLIENTE=_LW_CLIENTE, UF_PADRAO=_LW_UF,
-                                  disponivel=_lw_disponivel, beneficios=_lw_beneficios)
+                                  disponivel=_lw_disponivel, beneficios=_lw_beneficios, reforma=_lw_reforma)
 # auditor de NCM (opcional; carrega tabela oficial + TIPI na inicializacao)
 import sys as _sys
 _sys.path.insert(0, str(BASE_DIR / "data"))
@@ -1399,6 +1435,21 @@ def legisweb_consulta(ncm: str = "", descricao: str = "", codigo: str = "", uf: 
         return res
     except Exception as e:
         return {"ok": False, "erro": f"Falha ao consultar LegisWeb: {e}"}
+
+
+@app.get("/api/reforma")
+def reforma_consulta(ncm: str = "", descricao: str = ""):
+    """Benefícios da REFORMA TRIBUTÁRIA (IBS/CBS) por NCM ou descrição — fonte oficial LegisWeb."""
+    if not (legisweb and legisweb.disponivel()):
+        return {"ok": False, "erro": "Integração LegisWeb não configurada."}
+    ncm = (ncm or "").strip()
+    descricao = (descricao or "").strip()
+    if not (ncm or descricao):
+        return {"ok": False, "erro": "Informe ncm ou descricao."}
+    try:
+        return legisweb.reforma(ncm=ncm or None, descricao=descricao or None)
+    except Exception as e:
+        return {"ok": False, "erro": f"Falha ao consultar Reforma: {e}"}
 
 @app.get("/")
 def index():
