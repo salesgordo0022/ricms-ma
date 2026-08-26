@@ -71,13 +71,70 @@ try:
     import eligibilidade
 except Exception:
     RECURSOS_EXTRAS = False
-# integração LegisWeb (fonte oficial via API) — opcional, ativa se houver token+código no .env
-try:
-    import legisweb
-    _LEGISWEB_IMPORT_ERR = ""
-except Exception as _e:
-    legisweb = None
-    _LEGISWEB_IMPORT_ERR = repr(_e)
+# integração LegisWeb (fonte oficial via API) — EMBUTIDA no app (evita depender de arquivo separado
+# que o build do Render pode não subir). Ativa se houver LEGISWEB_TOKEN + LEGISWEB_CLIENTE no ambiente.
+import types as _types
+_LEGISWEB_IMPORT_ERR = ""
+_LW_TOKEN = os.getenv("LEGISWEB_TOKEN", "").strip()
+_LW_CLIENTE = os.getenv("LEGISWEB_CLIENTE", "").strip()
+_LW_UF = os.getenv("LEGISWEB_UF", "MA").strip() or "MA"
+_LW_BASE = "https://www.legisweb.com.br/api"
+_LW_CATS = {2: "Redução de BC", 3: "Isenção", 4: "Crédito Presumido/Outorgado", 5: "Diferimento"}
+_LW_CACHE = {}
+
+
+def _lw_disponivel():
+    return bool(_LW_TOKEN and _LW_CLIENTE)
+
+
+def _lw_get(endpoint, **params):
+    if not _lw_disponivel():
+        return False, {"erro": "LegisWeb não configurada (defina LEGISWEB_TOKEN e LEGISWEB_CLIENTE)."}
+    params = {k: v for k, v in params.items() if v not in (None, "")}
+    ckey = endpoint + "|" + "&".join(f"{k}={params[k]}" for k in sorted(params))
+    if ckey in _LW_CACHE:
+        return _LW_CACHE[ckey]
+    params["t"] = _LW_TOKEN
+    params["c"] = _LW_CLIENTE
+    try:
+        r = httpx.get(f"{_LW_BASE}/{endpoint.strip('/')}/", params=params, timeout=25)
+        r.raise_for_status()
+        data = r.json()
+    except httpx.HTTPStatusError as e:
+        return False, {"erro": f"HTTP {e.response.status_code}"}
+    except Exception as e:
+        return False, {"erro": f"Falha na chamada: {e}"}
+    if isinstance(data, dict):
+        msg = str(data.get("mensagem") or data.get("erro") or "")
+        if msg and "registros" not in data:
+            return False, {"erro": msg}
+        if not isinstance(data.get("resposta"), list):
+            data["resposta"] = []
+    res = (True, data)
+    _LW_CACHE[ckey] = res
+    return res
+
+
+def _lw_beneficios(ncm=None, descricao=None, codigo=None, estado=None, categorias=None):
+    estado = (estado or _LW_UF).upper()
+    cats = categorias or list(_LW_CATS.keys())
+    itens, erros = [], []
+    for cat in cats:
+        ok, data = _lw_get("beneficio-fiscal", estado=estado, categoria=cat,
+                           ncm=ncm, descricao=descricao, codigo=codigo)
+        if not ok:
+            erros.append({"categoria": _LW_CATS.get(cat, cat), "erro": data.get("erro")})
+            continue
+        for it in (data.get("resposta") or []):
+            it["_categoria_num"] = cat
+            it["_categoria"] = _LW_CATS.get(cat, str(cat))
+            itens.append(it)
+    return {"ok": not (erros and not itens), "uf": estado, "fonte": "LegisWeb (oficial)",
+            "total": len(itens), "itens": itens, "erros": erros}
+
+
+legisweb = _types.SimpleNamespace(TOKEN=_LW_TOKEN, CLIENTE=_LW_CLIENTE, UF_PADRAO=_LW_UF,
+                                  disponivel=_lw_disponivel, beneficios=_lw_beneficios)
 # auditor de NCM (opcional; carrega tabela oficial + TIPI na inicializacao)
 import sys as _sys
 _sys.path.insert(0, str(BASE_DIR / "data"))
