@@ -265,6 +265,8 @@ table{border-collapse:collapse}
 .rc-plain{font-size:13px;color:var(--ink);background:rgba(46,117,182,.10);border-radius:8px;padding:8px 11px;margin:6px 0}
 .rc-leg{font-size:12px;color:var(--mut);margin-top:3px}
 .rc-obs{font-size:12px;color:#e0a800;margin-top:5px}
+.lwlist{display:flex;flex-direction:column;gap:8px}
+.lwrow{background:rgba(255,255,255,.03);border:1px solid var(--line);border-left:4px solid #2e75b6;border-radius:10px;padding:10px 13px}
 </style></head><body>
 <canvas id="bgwave"></canvas>
 <header>
@@ -429,8 +431,10 @@ function lwOficialCard(it, oper){
  const nota=['CFOP '+cf[1],'CST/CSOSN '+m.cst,'Base legal: '+(it.desc_base_legal||'ver dispositivo'),'Indicar o dispositivo legal e o valor do benefício na NF'];
  const notaHTML=nota.map(n=>`<div class="fn"><span class="ck">✔</span><span>${escH(n)}</span></div>`).join('');
  const badge=m.na?`<div class="fbadge off">✘ Tributação normal</div>`:`<div class="fbadge">✓ Benefício disponível</div>`;
+ const _desc=it.descricao||'Produto'; const _tit=_desc.length>90?_desc.slice(0,90)+'…':_desc;
  return `<div class="fcard">
-  <div class="fhead"><div><div class="fname">${escH(it.descricao||'Produto')}</div><div class="fsub">${escH(cat)} • fonte oficial LegisWeb${it.ncm?(' • NCM '+escH(it.ncm)):''}</div></div>${badge}</div>
+  <div class="fhead"><div><div class="fname" style="font-size:${_desc.length>60?'18px':'22px'}">${escH(_tit)}</div><div class="fsub">${escH(cat)} • fonte oficial LegisWeb${it.ncm?(' • NCM '+escH(it.ncm)):''}</div></div>${badge}</div>
+  ${_desc.length>90?`<div class="small mut" style="margin:0 18px 6px">${escH(_desc)}</div>`:''}
   <div class="fsec"><div class="ftitle"><span class="n">1</span> Tipo da Operação</div>
    <div class="fopsplit"><div class="fopgrid"><div class="box"><div class="k">${escH(cf[2])}</div><div class="v cfopbig">CFOP ${escH(cf[1])}</div></div></div>
    <div class="fresumo ${m.na?'na':''}"><div class="fl">${escH(m.rot)}</div><div class="fb">${escH(m.big)}</div><div class="ft">${escH(m.txt)}</div></div></div></div>
@@ -444,6 +448,26 @@ function lwIcmsRender(res, oper){
  const its=res.itens||[];
  if(!its.length)return `<div class="mut small">Nenhum benefício de ICMS encontrado em ${escH(res.uf||'MA')} (tente por descrição).</div>`;
  return its.map(it=>lwOficialCard(it, oper||'interna_consumidor')).join('');
+}
+// lista COMPACTA (caixinhas) — confirmação oficial + demais produtos organizados
+function lwIcmsCompact(res){
+ const hd='<div class="reformahd">📊 Confirmação na fonte oficial (LegisWeb)</div>';
+ if(!res||res.ok===false||res.erro)return '<div class="reformabox">'+hd+`<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div></div>`;
+ const its=res.itens||[];
+ if(!its.length)return '<div class="reformabox">'+hd+`<div class="mut small">Nada localizado na LegisWeb para este termo.</div></div>`;
+ let h='<div class="reformabox">'+hd+`<div class="small mut" style="margin-bottom:6px">${its.length} registro(s) oficiais</div><div class="lwlist">`;
+ for(const it of its){
+  const cat=it._categoria||''; const cor=benCor(cat);
+  const desc=(it.descricao||''); const dcurto=desc.length>120?desc.slice(0,120)+'…':desc;
+  const vig=it.vigencia_fim?` · 📅 ${escH(it.vigencia_fim)}`:'';
+  const cb=it.cbenef?` · CBENEF ${escH(it.cbenef)}`:'';
+  h+=`<div class="lwrow" style="border-left-color:${cor}">
+   <div><span class="rc-badge" style="background:${cor};font-size:11px">${escH(cat)}</span><span class="small mut">${cb}${vig}</span></div>
+   <div class="small" style="margin-top:4px">${escH(dcurto)}</div>
+   ${it.desc_base_legal?`<div class="rc-leg">📖 ${escH(it.desc_base_legal)}</div>`:''}
+  </div>`;
+ }
+ return h+'</div></div>';
 }
 const LW_LABELS={codigo:'Código',descricao:'Descrição',ncm:'NCM',cest:'CEST',titulo:'Título',
  natureza:'Natureza',fluxo:'Fluxo',aliquota:'Alíquota',aliquota_pis:'PIS',aliquota_cofins:'COFINS',
@@ -473,20 +497,29 @@ async function lwBuscar(){
  $('#lwGo').disabled=true;
  $('#lwOut').innerHTML='<p class="mut">Consultando fonte oficial (LegisWeb)…</p>';
  try{
-  if(tipo==='completa'||tipo==='icms'||tipo==='reforma'){
+  if(tipo==='completa'){
    if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
    const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
-   const oper=$('#lwOper').value;
+   // 1) CARD com % EXATO do nosso motor (percentuais certeiros p/ o ERP do cliente)
+   const r=await api('/consulta',{method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({produto:val,etapa:$('#lwEtapa').value,operacao:$('#lwOper').value,operacoes:[$('#lwOper').value],regime:$('#lwReg').value,explicar_ia:false})});
    let h='';
-   // ICMS oficial (LegisWeb) CONVERTIDO para o card rico
-   if(tipo!=='reforma'){
-    const icms=await api('/legisweb?'+q);
-    const cards=lwIcmsRender(icms,oper);
-    h+=cards;
-   }
-   // Reforma (IBS/CBS)
-   if(tipo!=='icms'){const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';}
-   $('#lwOut').innerHTML=h||'<div class="mut small">Nenhum resultado.</div>';
+   if(r.encontrou){for(const it of r.itens){h+=cardHTML(it,r.consulta&&r.consulta.regime_rotulo);}}
+   else if(r.fallback){const f=r.fallback;h+=`<div class="fcard"><div class="fhead"><div><div class="fname">${escH(val)}</div><div class="fsub">${escH(f.titulo||'Sem benefício localizado')}</div></div><div class="fbadge off">✘ Tributação normal</div></div><div class="fsec"><div class="fstat"><div class="fs"><div class="k">ICMS</div><div class="v">${escH(f.icms||'23%')}</div></div><div class="fs"><div class="k">CFOP</div><div class="v cfopbig">${escH(f.cfop||'')}</div></div></div></div></div>`;}
+   // 2) Reforma (IBS/CBS)
+   const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';
+   // 3) confirmação oficial (organizada em caixinhas)
+   const icms=await api('/legisweb?'+q);h+=lwIcmsCompact(icms);
+   $('#lwOut').innerHTML=h;
+  }else if(tipo==='icms'){
+   if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
+   const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
+   const icms=await api('/legisweb?'+q);
+   $('#lwOut').innerHTML=lwIcmsRender(icms,$('#lwOper').value);
+  }else if(tipo==='reforma'){
+   if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
+   const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
+   const ref=await api('/reforma?'+q);$('#lwOut').innerHTML='<div class="reformabox">'+reformaRender(ref)+'</div>';
   }else if(tipo==='gtin'){
    if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite o código de barras (GTIN/EAN).</div>';$('#lwGo').disabled=false;return;}
    const g=await api('/gtin?gtin='+encodeURIComponent(val));
