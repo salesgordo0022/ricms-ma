@@ -250,6 +250,11 @@ table{border-collapse:collapse}
 .ben-drawer-value.desc{white-space:pre-wrap;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:12px 14px;max-height:300px;overflow-y:auto}
 .ben-drawer-foot{display:flex;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line)}
 
+.lwsec{border-top:1px solid var(--line,#2a2f3a)}
+.lwbtn{background:#1f4e78;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.lwbtn:hover{background:#2e75b6}
+.lwbtn:disabled{opacity:.6;cursor:default}
+.lwout{margin-top:10px}
 </style></head><body>
 <canvas id="bgwave"></canvas>
 <header>
@@ -453,7 +458,21 @@ function cardHTML(it,regimeRotulo){
    <div class="fnota">${notaHTML}</div></div>
   ${condHTML(it)}
   ${reqHTML(it)}
+  <div class="fsec lwsec"><button class="lwbtn" data-ncm="${escH(it.ncm||'')}" data-prod="${escH(it.produto||'')}">🔎 Conferir na fonte oficial (LegisWeb)</button><div class="lwout"></div></div>
  </div>`;
+}
+function lwRender(res){
+ if(!res||res.ok===false||res.erro)return `<div class="fna">⚠️ ${escH((res&&res.erro)||'Fonte oficial indisponível.')}</div>`;
+ const its=res.itens||[];
+ if(!its.length)return `<div class="mut small" style="padding:8px 0">Nenhum benefício encontrado na fonte oficial (LegisWeb) para esta consulta em ${escH(res.uf||'')}.</div>`;
+ let h=`<div class="small mut" style="margin:6px 0">Fonte oficial LegisWeb • ${escH(res.uf||'')} • ${its.length} registro(s):</div>`;
+ for(const it of its){
+  const vig=it.vigencia_fim?` • vigência até ${escH(it.vigencia_fim)}`:'';
+  const bl=it.desc_base_legal?`<div class="small">📖 ${escH(it.desc_base_legal)}</div>`:'';
+  const cb=it.cbenef?` • CBENEF ${escH(it.cbenef)}`:'';
+  h+=`<div class="box" style="margin:6px 0"><div><b>${escH(it._categoria||'')}</b> — NCM ${escH(it.ncm||'-')}${cb}${vig}</div><div class="small">${escH(it.descricao||'')}</div>${bl}</div>`;
+ }
+ return h;
 }
 $('#cBtn').onclick=async()=>{const prod=$('#cProd').value.trim();if(!prod){return;}
  $('#cOut').innerHTML='<p class="mut">Consultando…</p>';
@@ -464,6 +483,20 @@ $('#cBtn').onclick=async()=>{const prod=$('#cProd').value.trim();if(!prod){retur
  for(const it of r.itens){h+=cardHTML(it,r.consulta&&r.consulta.regime_rotulo);}
  if(r.explicacao_ia)h+=`<div class="ia">🤖 <b>Análise da IA</b><div class="iamd">${mdLite(r.explicacao_ia)}</div></div>`;
  $('#cOut').innerHTML=h;};
+// ---- botão "Conferir na fonte oficial (LegisWeb)" (delegado) ----
+document.addEventListener('click',async(e)=>{
+ const b=e.target.closest('.lwbtn'); if(!b)return;
+ const ncm=b.getAttribute('data-ncm')||'', prod=b.getAttribute('data-prod')||'';
+ const out=b.parentElement.querySelector('.lwout');
+ b.disabled=true; const txt=b.textContent; b.textContent='Consultando fonte oficial…';
+ try{
+  // busca por DESCRIÇÃO (a base do LegisWeb indexa por descrição; NCM costuma vir vazio)
+  const termo=(prod||ncm||'').split('(')[0].trim();
+  const res=await api('/legisweb?descricao='+encodeURIComponent(termo));
+  out.innerHTML=lwRender(res);
+ }catch(err){out.innerHTML='<div class="fna">⚠️ Falha ao consultar a fonte oficial.</div>';}
+ b.disabled=false; b.textContent=txt;
+});
 
 // ---- busca de produto estilo PromptInput (adaptado; mantém cProd/cEtapa/cOper/cBtn) ----
 const OP_LABELS=[['interna','Interna (empresa)'],['interna_consumidor','Interna (consumidor)'],['inter','Interest. (empresa)'],['consumidor','Interest. (consumidor)'],['rural_interna','Rural interna'],['rural_cooperativa','Rural cooperativa'],['rural_interestadual','Rural interestadual']];

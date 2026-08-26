@@ -71,6 +71,11 @@ try:
     import eligibilidade
 except Exception:
     RECURSOS_EXTRAS = False
+# integração LegisWeb (fonte oficial via API) — opcional, ativa se houver token+código no .env
+try:
+    import legisweb
+except Exception:
+    legisweb = None
 # auditor de NCM (opcional; carrega tabela oficial + TIPI na inicializacao)
 import sys as _sys
 _sys.path.insert(0, str(BASE_DIR / "data"))
@@ -535,12 +540,19 @@ def montar_item(b, etapa, operacao, regime):
     # escopo por ETAPA/contribuinte: benefício só de produtor NÃO vale p/ empresa (varejo/atacado), etc.
     _te = _norm(" ".join(str(b.get(k, "")) for k in ("produto", "beneficio_resumo", "condicao_resumo", "condicao_texto_integral", "base_legal")))
     etp = set()
-    if b.get("escopo_etapa"):
-        etp = set(str(b["escopo_etapa"]).split("|"))
+    _ee = b.get("escopo_etapa")
+    if _ee == "todos":
+        etp = set()          # explicitamente SEM restrição de etapa — não re-derivar
+    elif _ee:
+        etp = set(str(_ee).split("|"))
     else:
         _tep = " " + _te + " "
-        if (any(k in _te for k in ("produtor rural", "produtor rudimentar", "produtores agropecuar", "por produtores", "pelo produtor", " do produtor", "agricultor familiar", "pronaf", "carcinicultura", "capturados", "pescador"))
-                or "cnae 01" in _te or "cnae 0154" in _te or " cae 1 " in _tep):
+        # guarda: "EXCETO ... produtores" / "promovidos por produtores" é cláusula de EXCLUSÃO —
+        # significa que o benefício NÃO vai ao produtor (logo vale p/ empresa). Não marcar escopo produtor.
+        _excl_prod = ("promovidos por produtores" in _te) or ("exceto" in _te and "produtores" in _te)
+        if (not _excl_prod and (
+                any(k in _te for k in ("produtor rural", "produtor rudimentar", "produtores agropecuar", "por produtores", "pelo produtor", " do produtor", "agricultor familiar", "pronaf", "carcinicultura", "capturados", "pescador"))
+                or "cnae 01" in _te or "cnae 0154" in _te or " cae 1 " in _tep)):
             etp.add("produtor")
         if any(k in _te for k in ("atacadista credenciado", "atacadistas de graos", "atacadistas de alimentos", "por atacadistas")):
             etp.add("atacado")
@@ -1293,7 +1305,29 @@ def _resposta_fallback(res, campos, etapa, regime):
 
 @app.get("/api/status")
 def status():
-    return {"ok": True, "beneficios": len(BENEF), "modelo": MODEL, "provedor": PROVIDER, "chave_configurada": bool(AI_KEY)}
+    return {"ok": True, "beneficios": len(BENEF), "modelo": MODEL, "provedor": PROVIDER,
+            "chave_configurada": bool(AI_KEY),
+            "legisweb": bool(legisweb and legisweb.disponivel())}
+
+
+@app.get("/api/legisweb")
+def legisweb_consulta(ncm: str = "", descricao: str = "", codigo: str = "", uf: str = ""):
+    """Consulta a FONTE OFICIAL (API LegisWeb) por NCM/descrição: benefícios fiscais da UF
+    (redução, isenção, crédito, diferimento) com base legal, CBENEF e vigência."""
+    if not (legisweb and legisweb.disponivel()):
+        return {"ok": False, "erro": "Integração LegisWeb não configurada (defina LEGISWEB_TOKEN e "
+                "LEGISWEB_CLIENTE no .env do servidor)."}
+    ncm = (ncm or "").strip()
+    descricao = (descricao or "").strip()
+    codigo = (codigo or "").strip()
+    if not (ncm or descricao or codigo):
+        return {"ok": False, "erro": "Informe ncm, descricao ou codigo."}
+    try:
+        res = legisweb.beneficios(ncm=ncm or None, descricao=descricao or None,
+                                  codigo=codigo or None, estado=(uf or None))
+        return res
+    except Exception as e:
+        return {"ok": False, "erro": f"Falha ao consultar LegisWeb: {e}"}
 
 @app.get("/")
 def index():
