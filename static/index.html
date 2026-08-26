@@ -650,7 +650,7 @@ function benCor(cat){const c=(cat||'').toLowerCase();
  if(c.includes('isen'))return '#33a852'; if(c.includes('reduc')||c.includes('reduç')||c.includes('base')||c.includes('aliquota')||c.includes('alíquota'))return '#2e75b6';
  if(c.includes('diferi'))return '#d99a00'; if(c.includes('credit')||c.includes('crédit'))return '#33a852';
  if(c.includes('substitu'))return '#e0703a'; return '#8a94a6';}
-// ---- Reforma Tributária (IBS/CBS) — card visual ----
+// ---- Reforma Tributária (IBS/CBS) — card rico (CST, carga, NCM, cClassTrib) ----
 function reformaRender(res){
  const hd='<div class="reformahd">🇧🇷 Reforma Tributária — IBS/CBS <span class="small mut">(fonte oficial LegisWeb)</span></div>';
  if(!res||res.ok===false||res.erro)return hd+`<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div>`;
@@ -658,16 +658,24 @@ function reformaRender(res){
  if(!its.length)return hd+`<div class="mut small" style="padding:6px 0">Sem benefício específico na Reforma para este produto — aplica-se a regra geral do IBS/CBS.</div>`;
  let h=hd;
  for(const it of its){
-  const tipo=it.tipo_beneficio||''; const cor=benCor(tipo);
-  const red=(it.reducoes||[]).map(r=>(r.percentual&&r.percentual!=='Sim')?(' '+r.percentual):'').join('');
-  const pl=benPlain(tipo);
-  h+=`<div class="rcard" style="border-left-color:${cor}">
-   <div class="rc-head"><span class="rc-badge" style="background:${cor}">${escH(tipo||'Benefício')}${escH(red)}</span></div>
-   <div class="rc-prod">${escH(it.descricao||'')}</div>
-   ${pl?`<div class="rc-plain">💡 ${escH(pl)}</div>`:''}
-   ${it.aplicabilidade?`<div class="rc-leg">${escH(it.aplicabilidade)}</div>`:''}
-   ${it.base_legal?`<div class="rc-leg">📖 ${escH(it.base_legal)}</div>`:''}
-   ${it.observacao?`<div class="rc-obs">⚠️ ${escH(it.observacao)}</div>`:''}
+  const tipo=it.tipo_beneficio||'Benefício'; const pl=benPlain(tipo);
+  const cfg=[['NCM',it.ncm||'-'],['CST IBS/CBS',it.cst||'-'],['cClassTrib',it.cclasstrib||'-'],['Redução',it.reducao||'-']];
+  const cfgHTML=cfg.map(c=>`<div class="fs"><div class="k">${escH(c[0])}</div><div class="v" style="font-size:16px">${escH(c[1])}</div></div>`).join('');
+  const nota=[];
+  if(it.cst)nota.push('CST '+it.cst+(it.cst_desc?(' — '+it.cst_desc):''));
+  if(it.cclasstrib)nota.push('cClassTrib '+it.cclasstrib);
+  if(it.base_legal)nota.push('Base legal: '+it.base_legal);
+  const notaHTML=nota.map(n=>`<div class="fn"><span class="ck">✔</span><span>${escH(n)}</span></div>`).join('');
+  h+=`<div class="fcard" style="margin:10px 0">
+   <div class="fhead"><div><div class="fname">${escH(it.descricao||'')}</div><div class="fsub">${escH(tipo)}${it.reducao?(' • '+escH(it.reducao)):''} • IBS/CBS</div></div><div class="fbadge">✓ Reforma</div></div>
+   ${pl?`<div class="rc-plain" style="margin:0 18px">💡 ${escH(pl)}</div>`:''}
+   <div class="fsec"><div class="ftitle"><span class="n">1</span> Classificação IBS/CBS</div><div class="fstat">${cfgHTML}</div>
+    ${it.cst_desc?`<div class="small mut" style="margin-top:8px">CST ${escH(it.cst)}: ${escH(it.cst_desc)}</div>`:''}
+    ${it.cclasstrib_desc?`<div class="small mut" style="margin-top:3px">cClassTrib ${escH(it.cclasstrib)}: ${escH(it.cclasstrib_desc)}</div>`:''}</div>
+   <div class="fsec"><div class="ftitle"><span class="n">2</span> Como se aplica</div>
+    ${it.aplicabilidade?`<div class="small">${escH(it.aplicabilidade)}</div>`:''}
+    ${notaHTML?`<div class="fnota" style="margin-top:8px">${notaHTML}</div>`:''}
+    ${it.observacao?`<div class="rc-obs" style="margin-top:6px">⚠️ ${escH(it.observacao)}</div>`:''}</div>
   </div>`;
  }
  return h;

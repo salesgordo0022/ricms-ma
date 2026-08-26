@@ -151,21 +151,37 @@ def _lw_reforma(ncm=None, descricao=None):
             itens.extend(resp.get(key) or [])
     elif isinstance(resp, list):
         itens = resp
-    # achatar p/ exibição
+    # achatar p/ exibição (com CST IBS/CBS, cClassTrib, NCM e carga)
     out = []
     for it in itens:
         item = it.get("item", {}) if isinstance(it, dict) else {}
         ben = it.get("beneficio", {}) if isinstance(it, dict) else {}
         red = it.get("reducoes", []) if isinstance(it, dict) else []
+        clas = it.get("classificacoes", []) if isinstance(it, dict) else []
+        c0 = clas[0] if clas else {}
+        # carga/redução: valor% quando percentual == "Sim"
+        red_txt = ""
+        for r in red:
+            v = str(r.get("valor", "") or "").strip()
+            if v:
+                try:
+                    v = ("%g" % float(v))
+                except Exception:
+                    pass
+                red_txt = (v + "%") if str(r.get("percentual", "")).lower() == "sim" else v
+                break
         out.append({
-            "codigo": item.get("codigo", ""),
+            "ncm": item.get("codigo", ""),
             "descricao": item.get("item_descricao") or item.get("descricao", ""),
             "tipo_beneficio": ben.get("tipo_beneficio", ""),
+            "reducao": red_txt,
+            "cst": c0.get("codigo_cst", ""),
+            "cst_desc": c0.get("descricao_cst", ""),
+            "cclasstrib": c0.get("codigo_classificacao", ""),
+            "cclasstrib_desc": c0.get("descricao_classificacao", ""),
             "aplicabilidade": item.get("aplicabilidade_descricao") or (it.get("detalhes", {}) or {}).get("aplicabilidade", ""),
             "base_legal": item.get("base_legal") or (it.get("detalhes", {}) or {}).get("base_legal", ""),
             "observacao": item.get("beneficio_observacao") or ben.get("observacao", ""),
-            "reducoes": [{"tipo": r.get("tipo_reducao", ""), "percentual": r.get("percentual", ""),
-                          "descricao": r.get("descricao", "")} for r in red],
         })
     return {"ok": True, "fonte": "LegisWeb — Reforma Tributária (IBS/CBS)", "total": len(out), "itens": out}
 
