@@ -252,6 +252,11 @@ table{border-collapse:collapse}
 
 .reformabox{margin-top:14px;padding:16px 18px;border-radius:14px;background:linear-gradient(180deg,rgba(31,78,120,.18),rgba(31,78,120,.06));border:1px solid rgba(46,117,182,.35)}
 .reformahd{font-weight:700;font-size:15px;margin-bottom:8px}
+.lwbar{display:flex;gap:10px;max-width:900px;margin:0 auto;flex-wrap:wrap}
+.lwbar select,.lwbar input{padding:13px 15px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);font-size:15px}
+.lwbar input{flex:1;min-width:220px}
+.lwbar button{padding:13px 26px;border:0;border-radius:12px;background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+.lwbar button:disabled{opacity:.6;cursor:default}
 </style></head><body>
 <canvas id="bgwave"></canvas>
 <header>
@@ -259,6 +264,7 @@ table{border-collapse:collapse}
  <div class="tabs">
   <div class="tab on" data-p="chat"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg><span>Chat</span></div>
   <div class="tab" data-p="consulta"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><span>Consulta</span></div>
+  <div class="tab" data-p="legisweb"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>LegisWeb</span></div>
  </div>
 </header>
 <div class="wrap">
@@ -318,6 +324,20 @@ table{border-collapse:collapse}
   <div id="cOut" style="max-width:820px;margin:16px auto 0"></div>
  </div>
 
+ <!-- ABA LEGISWEB (fonte oficial: ICMS + Reforma) -->
+ <div class="panel" id="p-legisweb">
+  <div class="hero">
+   <h2 class="herotitle">Consulta Oficial — LegisWeb</h2>
+   <p class="herosub">Fonte oficial: benefícios de ICMS (Estadual/MA) + Reforma Tributária (IBS/CBS). Busque por descrição ou NCM.</p>
+  </div>
+  <div class="lwbar">
+   <select id="lwTipo"><option value="descricao">Descrição</option><option value="ncm">NCM</option></select>
+   <input id="lwInput" placeholder="ex.: arroz, medicamento, reprodutores, 1006.30.21">
+   <button id="lwGo">Consultar</button>
+  </div>
+  <div id="lwOut" style="max-width:900px;margin:18px auto 0"></div>
+ </div>
+
 <!-- BENEFÍCIOS POR SEGMENTO (RECURSOS EXTRAS) — segmentos no topo + grid filtros/lista + gaveta -->
  </div>
 <script>
@@ -329,6 +349,35 @@ function api(path,opt){return fetch('/api'+path,opt).then(r=>r.json());}
 $$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
  $$('.panel').forEach(p=>p.classList.remove('on'));$('#p-'+t.dataset.p).classList.add('on');
  if(t.dataset.p==='perfis')renderPerfis();});
+
+// ---- ABA LEGISWEB (fonte oficial: ICMS + Reforma) ----
+function lwIcmsRender(res){
+ if(!res||res.ok===false||res.erro)return `<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div>`;
+ const its=res.itens||[];
+ if(!its.length)return `<div class="mut small">Nenhum benefício de ICMS encontrado em ${escH(res.uf||'MA')} (tente por descrição).</div>`;
+ return its.map(it=>{
+  const vig=it.vigencia_fim?` • vigência até ${escH(it.vigencia_fim)}`:'';
+  const cb=it.cbenef?` • CBENEF ${escH(it.cbenef)}`:'';
+  const bl=it.desc_base_legal?`<div class="small">📖 ${escH(it.desc_base_legal)}</div>`:'';
+  return `<div class="box" style="margin:6px 0"><div><b>${escH(it._categoria||'')}</b>${cb}${vig}</div><div class="small">${escH(it.descricao||'')}</div>${bl}</div>`;
+ }).join('');
+}
+async function lwBuscar(){
+ const tipo=$('#lwTipo').value, val=$('#lwInput').value.trim();
+ if(!val)return;
+ const q=(tipo==='ncm'?'ncm=':'descricao=')+encodeURIComponent(val);
+ $('#lwOut').innerHTML='<p class="mut">Consultando fonte oficial (LegisWeb)…</p>';
+ $('#lwGo').disabled=true;
+ try{
+  const [icms,ref]=await Promise.all([api('/legisweb?'+q),api('/reforma?'+q)]);
+  let h='<div class="reformabox"><div class="reformahd">📊 ICMS — benefícios oficiais (MA)</div>'+lwIcmsRender(icms)+'</div>';
+  h+='<div class="reformabox">'+reformaRender(ref)+'</div>';
+  $('#lwOut').innerHTML=h;
+ }catch(e){$('#lwOut').innerHTML='<div class="fna">⚠️ Falha ao consultar a fonte oficial.</div>';}
+ $('#lwGo').disabled=false;
+}
+$('#lwGo').onclick=lwBuscar;
+$('#lwInput').addEventListener('keydown',e=>{if(e.key==='Enter')lwBuscar();});
 
 // status + perfis
 api('/status').then(s=>{$('#status').innerHTML=s.chave_configurada?`<span class="ok">● IA on</span> · ${s.beneficios} itens · ${s.modelo}`:`<span class="warn">● IA off (configure .env)</span>`;});
