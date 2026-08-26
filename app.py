@@ -78,6 +78,7 @@ _LEGISWEB_IMPORT_ERR = ""
 _LW_TOKEN = os.getenv("LEGISWEB_TOKEN", "").strip()
 _LW_CLIENTE = os.getenv("LEGISWEB_CLIENTE", "").strip()
 _LW_UF = os.getenv("LEGISWEB_UF", "MA").strip() or "MA"
+_LW_CERT = os.getenv("LEGISWEB_COD_CERT", "").strip()  # código do certificado A1 (p/ consulta GTIN)
 _LW_BASE = "https://www.legisweb.com.br/api"
 _LW_CATS = {2: "Redução de BC", 3: "Isenção", 4: "Crédito Presumido/Outorgado", 5: "Diferimento"}
 _LW_CACHE = {}
@@ -169,8 +170,54 @@ def _lw_reforma(ncm=None, descricao=None):
     return {"ok": True, "fonte": "LegisWeb — Reforma Tributária (IBS/CBS)", "total": len(out), "itens": out}
 
 
-legisweb = _types.SimpleNamespace(TOKEN=_LW_TOKEN, CLIENTE=_LW_CLIENTE, UF_PADRAO=_LW_UF,
-                                  disponivel=_lw_disponivel, beneficios=_lw_beneficios, reforma=_lw_reforma)
+# todos os recursos (endpoints) que a API LegisWeb oferece
+_LW_RECURSOS = {
+    "beneficio-fiscal", "reforma_tributaria_beneficios", "st-interna", "st-interestadual",
+    "aliquota-padrao", "icms", "pauta-fiscal", "ipi", "tipi", "piscofins", "piscofins-importacao",
+    "cfop", "cst", "gtin", "correlacao-nbm-ncm-naladi", "ii", "agenda-tributaria",
+    "preferencia-tarifaria", "nve", "ptax", "defesa-comercial", "cide-combustivel",
+    "tratamento-administrativo-importacao", "tratamento-administrativo-exportacao",
+    "produto-ssn", "correlacoes_servicos", "empresas",
+}
+
+
+def _lw_gtin(gtin, cod_cert=None):
+    """Resolve GTIN/EAN (código de barras) -> produto/NCM/CEST. Exige certificado A1 (cod_cert)."""
+    ok, data = _lw_get("gtin", gtin=gtin, cod_cert=(cod_cert or _LW_CERT or None))
+    if not ok:
+        return {"ok": False, "erro": data.get("erro")}
+    resp = data.get("resposta") or {}
+    return {"ok": True, "produto": resp.get("produto", ""), "ncm": resp.get("ncm", ""),
+            "cest": resp.get("cest", ""), "gtin": resp.get("gtin", gtin),
+            "status": resp.get("motivo_status", ""), "cod_status": resp.get("cod_status", "")}
+
+
+def _lw_generic(recurso, params):
+    """Proxy genérico p/ QUALQUER endpoint da LegisWeb (whitelist). Retorna itens normalizados."""
+    if recurso not in _LW_RECURSOS:
+        return {"ok": False, "erro": f"Recurso '{recurso}' não disponível."}
+    if recurso == "gtin" and _LW_CERT and not params.get("cod_cert"):
+        params["cod_cert"] = _LW_CERT
+    ok, data = _lw_get(recurso, **params)
+    if not ok:
+        return {"ok": False, "erro": data.get("erro"), "itens": []}
+    resp = data.get("resposta")
+    itens = []
+    if isinstance(resp, list):
+        itens = resp
+    elif isinstance(resp, dict):
+        listas = [v for v in resp.values() if isinstance(v, list)]
+        if listas:
+            for v in listas:
+                itens.extend(v)
+        else:
+            itens = [resp]
+    return {"ok": True, "recurso": recurso, "registros": data.get("registros", len(itens)), "itens": itens}
+
+
+legisweb = _types.SimpleNamespace(TOKEN=_LW_TOKEN, CLIENTE=_LW_CLIENTE, UF_PADRAO=_LW_UF, CERT=_LW_CERT,
+                                  disponivel=_lw_disponivel, beneficios=_lw_beneficios, reforma=_lw_reforma,
+                                  gtin=_lw_gtin, generico=_lw_generic, recursos=sorted(_LW_RECURSOS))
 # auditor de NCM (opcional; carrega tabela oficial + TIPI na inicializacao)
 import sys as _sys
 _sys.path.insert(0, str(BASE_DIR / "data"))
@@ -1450,6 +1497,37 @@ def reforma_consulta(ncm: str = "", descricao: str = ""):
         return legisweb.reforma(ncm=ncm or None, descricao=descricao or None)
     except Exception as e:
         return {"ok": False, "erro": f"Falha ao consultar Reforma: {e}"}
+
+
+@app.get("/api/gtin")
+def gtin_consulta(gtin: str = "", cod_cert: str = ""):
+    """Resolve GTIN/EAN (código de barras) -> produto/NCM/CEST (exige certificado A1)."""
+    if not (legisweb and legisweb.disponivel()):
+        return {"ok": False, "erro": "LegisWeb não configurada."}
+    gtin = (gtin or "").strip()
+    if not gtin:
+        return {"ok": False, "erro": "Informe o GTIN/EAN."}
+    try:
+        return legisweb.gtin(gtin, cod_cert=(cod_cert or None))
+    except Exception as e:
+        return {"ok": False, "erro": f"Falha na consulta GTIN: {e}"}
+
+
+@app.get("/api/lw")
+def lw_generic_endpoint(recurso: str = "", ncm: str = "", descricao: str = "", codigo: str = "",
+                        gtin: str = "", estado: str = "", categoria: str = "", nbm: str = "",
+                        cod_cert: str = ""):
+    """Proxy genérico p/ qualquer recurso da API LegisWeb (ICMS, ST, IPI, PIS/COFINS, CFOP, CST, TIPI...)."""
+    if not (legisweb and legisweb.disponivel()):
+        return {"ok": False, "erro": "LegisWeb não configurada."}
+    if not recurso:
+        return {"ok": False, "erro": "Informe o recurso.", "recursos": legisweb.recursos}
+    params = {k: v for k, v in dict(ncm=ncm, descricao=descricao, codigo=codigo, gtin=gtin,
+              estado=(estado or _LW_UF), categoria=categoria, nbm=nbm, cod_cert=cod_cert).items() if v}
+    try:
+        return legisweb.generico(recurso, params)
+    except Exception as e:
+        return {"ok": False, "erro": f"Falha na consulta: {e}"}
 
 @app.get("/")
 def index():

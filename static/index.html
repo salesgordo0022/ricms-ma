@@ -331,8 +331,49 @@ table{border-collapse:collapse}
    <p class="herosub">Fonte oficial: benefícios de ICMS (Estadual/MA) + Reforma Tributária (IBS/CBS). Busque por descrição ou NCM.</p>
   </div>
   <div class="lwbar">
-   <select id="lwTipo"><option value="descricao">Descrição</option><option value="ncm">NCM</option></select>
-   <input id="lwInput" placeholder="ex.: arroz, medicamento, reprodutores, 1006.30.21">
+   <select id="lwTipo">
+    <optgroup label="Combinada">
+     <option value="completa">ICMS + Reforma (completo)</option>
+    </optgroup>
+    <optgroup label="ICMS / Estadual (MA)">
+     <option value="icms">ICMS — Benefícios</option>
+     <option value="st-interna">ST Interna</option>
+     <option value="st-interestadual">ST Interestadual</option>
+     <option value="aliquota-padrao">Alíquota Padrão (UF)</option>
+     <option value="icms-dif">Alíquota Diferenciada ICMS</option>
+     <option value="pauta-fiscal">Pauta Fiscal</option>
+    </optgroup>
+    <optgroup label="Reforma Tributária">
+     <option value="reforma">Reforma (IBS/CBS)</option>
+    </optgroup>
+    <optgroup label="Federal">
+     <option value="ipi">IPI (por NCM)</option>
+     <option value="piscofins">PIS/COFINS</option>
+     <option value="piscofins-importacao">PIS/COFINS Importação</option>
+     <option value="ii">Imposto de Importação</option>
+    </optgroup>
+    <optgroup label="Classificação / Códigos">
+     <option value="tipi">TIPI (NCM)</option>
+     <option value="cfop">CFOP</option>
+     <option value="cst">CST</option>
+     <option value="gtin">GTIN / Código de barras</option>
+     <option value="correlacao-nbm-ncm-naladi">Correlação NBM×NCM</option>
+     <option value="produto-ssn">Produto sem similar nacional</option>
+    </optgroup>
+    <optgroup label="Outros">
+     <option value="agenda-tributaria">Agenda Tributária</option>
+     <option value="ptax">PTAX (câmbio)</option>
+     <option value="cide-combustivel">CIDE Combustível</option>
+     <option value="defesa-comercial">Defesa Comercial</option>
+     <option value="nve">NVE</option>
+     <option value="preferencia-tarifaria">Preferência Tarifária</option>
+     <option value="correlacoes_servicos">Correlação de Serviços</option>
+     <option value="tratamento-administrativo-importacao">Trat. Adm. Importação</option>
+     <option value="tratamento-administrativo-exportacao">Trat. Adm. Exportação</option>
+     <option value="empresas">Base Empresarial (CNPJ)</option>
+    </optgroup>
+   </select>
+   <input id="lwInput" placeholder="produto, NCM, CFOP, CST, GTIN, CNPJ… (conforme a consulta)">
    <button id="lwGo">Consultar</button>
   </div>
   <div id="lwOut" style="max-width:900px;margin:18px auto 0"></div>
@@ -362,17 +403,52 @@ function lwIcmsRender(res){
   return `<div class="box" style="margin:6px 0"><div><b>${escH(it._categoria||'')}</b>${cb}${vig}</div><div class="small">${escH(it.descricao||'')}</div>${bl}</div>`;
  }).join('');
 }
+function lwGtinRender(g){
+ if(!g||g.ok===false||g.erro)return `<div class="reformabox"><div class="reformahd">🏷️ GTIN / Código de barras</div><div class="fna">⚠️ ${escH((g&&g.erro)||'indisponível')}</div><div class="small mut" style="margin-top:6px">A consulta por GTIN exige um certificado digital A1 cadastrado no LegisWeb (parâmetro cod_cert).</div></div>`;
+ return `<div class="reformabox"><div class="reformahd">🏷️ GTIN ${escH(g.gtin||'')}</div><div class="box"><div><b>${escH(g.produto||'—')}</b></div><div class="small">NCM ${escH(g.ncm||'-')} • CEST ${escH(g.cest||'-')}</div></div><div class="small mut" style="margin-top:6px">Copie o NCM e consulte ICMS + Reforma.</div></div>`;
+}
+function lwGenRender(res,tipo){
+ const hd=`<div class="reformahd">📋 ${escH(tipo)}</div>`;
+ if(!res||res.ok===false||res.erro)return `<div class="reformabox">${hd}<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div></div>`;
+ const its=res.itens||[];
+ if(!its.length)return `<div class="reformabox">${hd}<div class="mut small">Nenhum registro encontrado.</div></div>`;
+ let h=`<div class="reformabox">${hd}<div class="small mut">${its.length} registro(s) — fonte oficial LegisWeb</div>`;
+ for(const it of its.slice(0,40)){
+  const linhas=Object.entries(it).filter(([k,v])=>v&&typeof v!=='object'&&!k.startsWith('_'))
+    .map(([k,v])=>`<div class="small"><b>${escH(k)}:</b> ${escH(String(v)).slice(0,400)}</div>`).join('');
+  h+=`<div class="box" style="margin:6px 0">${linhas||'<div class="small mut">(sem campos simples)</div>'}</div>`;
+ }
+ if(its.length>40)h+=`<div class="small mut">…e mais ${its.length-40} registro(s).</div>`;
+ return h+'</div>';
+}
 async function lwBuscar(){
  const tipo=$('#lwTipo').value, val=$('#lwInput').value.trim();
- if(!val)return;
- const q=(tipo==='ncm'?'ncm=':'descricao=')+encodeURIComponent(val);
- $('#lwOut').innerHTML='<p class="mut">Consultando fonte oficial (LegisWeb)…</p>';
+ const isNum=/^[\d.\-\/\s]+$/.test(val);
  $('#lwGo').disabled=true;
+ $('#lwOut').innerHTML='<p class="mut">Consultando fonte oficial (LegisWeb)…</p>';
  try{
-  const [icms,ref]=await Promise.all([api('/legisweb?'+q),api('/reforma?'+q)]);
-  let h='<div class="reformabox"><div class="reformahd">📊 ICMS — benefícios oficiais (MA)</div>'+lwIcmsRender(icms)+'</div>';
-  h+='<div class="reformabox">'+reformaRender(ref)+'</div>';
-  $('#lwOut').innerHTML=h;
+  if(tipo==='completa'||tipo==='icms'||tipo==='reforma'){
+   if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
+   const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
+   let h='';
+   if(tipo!=='reforma'){const icms=await api('/legisweb?'+q);h+='<div class="reformabox"><div class="reformahd">📊 ICMS — benefícios oficiais (MA)</div>'+lwIcmsRender(icms)+'</div>';}
+   if(tipo!=='icms'){const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';}
+   $('#lwOut').innerHTML=h;
+  }else if(tipo==='gtin'){
+   if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite o código de barras (GTIN/EAN).</div>';$('#lwGo').disabled=false;return;}
+   const g=await api('/gtin?gtin='+encodeURIComponent(val));
+   $('#lwOut').innerHTML=lwGtinRender(g);
+  }else{
+   // genérico: qualquer recurso da API
+   const recurso = (tipo==='icms-dif'?'icms':tipo);
+   let p='recurso='+encodeURIComponent(recurso);
+   if(val){
+    const campoCod=(tipo==='cfop'||tipo==='cst'||tipo==='empresas');
+    p+='&'+(campoCod?(isNum?'codigo=':'descricao='):(isNum?'ncm=':'descricao='))+encodeURIComponent(val);
+   }
+   const res=await api('/lw?'+p);
+   $('#lwOut').innerHTML=lwGenRender(res,tipo);
+  }
  }catch(e){$('#lwOut').innerHTML='<div class="fna">⚠️ Falha ao consultar a fonte oficial.</div>';}
  $('#lwGo').disabled=false;
 }
