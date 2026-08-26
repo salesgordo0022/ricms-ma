@@ -74,8 +74,10 @@ except Exception:
 # integração LegisWeb (fonte oficial via API) — opcional, ativa se houver token+código no .env
 try:
     import legisweb
-except Exception:
+    _LEGISWEB_IMPORT_ERR = ""
+except Exception as _e:
     legisweb = None
+    _LEGISWEB_IMPORT_ERR = repr(_e)
 # auditor de NCM (opcional; carrega tabela oficial + TIPI na inicializacao)
 import sys as _sys
 _sys.path.insert(0, str(BASE_DIR / "data"))
@@ -1306,15 +1308,16 @@ def _resposta_fallback(res, campos, etapa, regime):
 @app.get("/api/status")
 def status():
     import os as _os
-    diag = {}
+    diag = {
+        "modulo_importado": bool(legisweb),
+        "import_erro": _LEGISWEB_IMPORT_ERR,
+        # nomes de variáveis LEGISWEB* que o servidor enxerga (revela erro de digitação; sem valores)
+        "vars_no_ambiente": sorted([k for k in _os.environ if k.upper().startswith("LEGISWEB")]),
+    }
     if legisweb:
-        diag = {
-            "token_presente": bool(legisweb.TOKEN),
-            "cliente_presente": bool(legisweb.CLIENTE),
-            "uf": legisweb.UF_PADRAO,
-            # nomes de variáveis LEGISWEB* que o servidor enxerga (revela erro de digitação; sem valores)
-            "vars_encontradas": sorted([k for k in _os.environ if k.upper().startswith("LEGISWEB")]),
-        }
+        diag["token_presente"] = bool(legisweb.TOKEN)
+        diag["cliente_presente"] = bool(legisweb.CLIENTE)
+        diag["uf"] = legisweb.UF_PADRAO
     return {"ok": True, "beneficios": len(BENEF), "modelo": MODEL, "provedor": PROVIDER,
             "chave_configurada": bool(AI_KEY),
             "legisweb": bool(legisweb and legisweb.disponivel()),
