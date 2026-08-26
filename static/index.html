@@ -384,6 +384,11 @@ table{border-collapse:collapse}
    <input id="lwInput" placeholder="produto, NCM, CFOP, CST, GTIN, CNPJ… (conforme a consulta)">
    <button id="lwGo">Consultar</button>
   </div>
+  <div class="lwbar" id="lwPerfil" style="margin-top:10px">
+   <select id="lwEtapa"><option value="varejo">Varejo</option><option value="atacado">Atacado</option><option value="industria">Indústria / Importador</option><option value="produtor">Produtor Rural</option></select>
+   <select id="lwOper"><option value="interna_consumidor">Interna — consumidor final</option><option value="interna">Interna — empresa (contribuinte)</option><option value="inter">Interestadual — empresa</option><option value="consumidor">Interestadual — consumidor final</option></select>
+   <select id="lwReg"><option value="lucro_presumido">Lucro Presumido</option><option value="lucro_real">Lucro Real</option><option value="simples">Simples Nacional</option><option value="mei">MEI</option></select>
+  </div>
   <div id="lwOut" style="max-width:900px;margin:18px auto 0"></div>
  </div>
 
@@ -459,12 +464,25 @@ async function lwBuscar(){
  $('#lwGo').disabled=true;
  $('#lwOut').innerHTML='<p class="mut">Consultando fonte oficial (LegisWeb)…</p>';
  try{
-  if(tipo==='completa'||tipo==='icms'||tipo==='reforma'){
+  if(tipo==='completa'){
+   if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
+   const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
+   // 1) CARD COMPLETO do motor local (igual à aba Consulta: ICMS FINAL %, CFOP, CST, Nota Fiscal, Condições)
+   const r=await api('/consulta',{method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({produto:val,etapa:$('#lwEtapa').value,operacao:$('#lwOper').value,operacoes:[$('#lwOper').value],regime:$('#lwReg').value,explicar_ia:false})});
+   let h='';
+   if(r.encontrou){for(const it of r.itens){h+=cardHTML(it,r.consulta&&r.consulta.regime_rotulo);}}
+   else if(r.fallback){const f=r.fallback;h+=`<div class="fcard"><div class="fhead"><div><div class="fname">${escH(val)}</div><div class="fsub">${escH(f.titulo||'Sem benefício localizado')}</div></div><div class="fbadge off">✘ Tributação normal</div></div><div class="fsec"><div class="fstat"><div class="box"><div class="k">ICMS</div><div class="v">${escH(f.icms||'23%')}</div></div><div class="box"><div class="k">CFOP</div><div class="v cfopbig">${escH(f.cfop||'')}</div></div><div class="box"><div class="k">Federal</div><div class="v">${escH(f.federal||'')}</div></div></div><p class="small mut">${escH(f.obs||'')}</p></div></div>`;}
+   // 2) confirmação na fonte oficial + Reforma
+   const icms=await api('/legisweb?'+q);h+='<div class="reformabox"><div class="reformahd">📊 ICMS — confirmação na fonte oficial (LegisWeb)</div>'+lwIcmsRender(icms)+'</div>';
+   const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';
+   $('#lwOut').innerHTML=h;
+  }else if(tipo==='icms'||tipo==='reforma'){
    if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite um produto ou NCM.</div>';$('#lwGo').disabled=false;return;}
    const q=isNum?('ncm='+encodeURIComponent(val)):('descricao='+encodeURIComponent(val));
    let h='';
-   if(tipo!=='reforma'){const icms=await api('/legisweb?'+q);h+='<div class="reformabox"><div class="reformahd">📊 ICMS — benefícios oficiais (MA)</div>'+lwIcmsRender(icms)+'</div>';}
-   if(tipo!=='icms'){const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';}
+   if(tipo==='icms'){const icms=await api('/legisweb?'+q);h+='<div class="reformabox"><div class="reformahd">📊 ICMS — benefícios oficiais (MA)</div>'+lwIcmsRender(icms)+'</div>';}
+   else{const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';}
    $('#lwOut').innerHTML=h;
   }else if(tipo==='gtin'){
    if(!val){$('#lwOut').innerHTML='<div class="mut small">Digite o código de barras (GTIN/EAN).</div>';$('#lwGo').disabled=false;return;}
@@ -486,6 +504,8 @@ async function lwBuscar(){
 }
 $('#lwGo').onclick=lwBuscar;
 $('#lwInput').addEventListener('keydown',e=>{if(e.key==='Enter')lwBuscar();});
+function lwTogglePerfil(){const t=$('#lwTipo').value;$('#lwPerfil').style.display=(t==='completa')?'flex':'none';}
+$('#lwTipo').onchange=lwTogglePerfil;lwTogglePerfil();
 
 // status + perfis
 api('/status').then(s=>{$('#status').innerHTML=s.chave_configurada?`<span class="ok">● IA on</span> · ${s.beneficios} itens · ${s.modelo}`:`<span class="warn">● IA off (configure .env)</span>`;});
