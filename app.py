@@ -152,6 +152,8 @@ def _lw_reforma(ncm=None, descricao=None):
     elif isinstance(resp, list):
         itens = resp
     # achatar p/ exibição (com CST IBS/CBS, cClassTrib, NCM e carga)
+    def _limpa(t):
+        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(t or ""))).strip()
     out = []
     for it in itens:
         item = it.get("item", {}) if isinstance(it, dict) else {}
@@ -171,17 +173,17 @@ def _lw_reforma(ncm=None, descricao=None):
                 red_txt = (v + "%") if str(r.get("percentual", "")).lower() == "sim" else v
                 break
         out.append({
-            "ncm": item.get("codigo", ""),
-            "descricao": item.get("item_descricao") or item.get("descricao", ""),
-            "tipo_beneficio": ben.get("tipo_beneficio", ""),
+            "ncm": _limpa(item.get("codigo", "")),
+            "descricao": _limpa(item.get("item_descricao") or item.get("descricao", "")),
+            "tipo_beneficio": _limpa(ben.get("tipo_beneficio", "")),
             "reducao": red_txt,
-            "cst": c0.get("codigo_cst", ""),
-            "cst_desc": c0.get("descricao_cst", ""),
-            "cclasstrib": c0.get("codigo_classificacao", ""),
-            "cclasstrib_desc": c0.get("descricao_classificacao", ""),
-            "aplicabilidade": item.get("aplicabilidade_descricao") or (it.get("detalhes", {}) or {}).get("aplicabilidade", ""),
-            "base_legal": item.get("base_legal") or (it.get("detalhes", {}) or {}).get("base_legal", ""),
-            "observacao": item.get("beneficio_observacao") or ben.get("observacao", ""),
+            "cst": _limpa(c0.get("codigo_cst", "")),
+            "cst_desc": _limpa(c0.get("descricao_cst", "")),
+            "cclasstrib": _limpa(c0.get("codigo_classificacao", "")),
+            "cclasstrib_desc": _limpa(c0.get("descricao_classificacao", "")),
+            "aplicabilidade": _limpa(item.get("aplicabilidade_descricao") or (it.get("detalhes", {}) or {}).get("aplicabilidade", "")),
+            "base_legal": _limpa(item.get("base_legal") or (it.get("detalhes", {}) or {}).get("base_legal", "")),
+            "observacao": _limpa(item.get("beneficio_observacao") or ben.get("observacao", "")),
         })
     return {"ok": True, "fonte": "LegisWeb — Reforma Tributária (IBS/CBS)", "total": len(out), "itens": out}
 
