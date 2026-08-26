@@ -360,8 +360,8 @@ table{border-collapse:collapse}
    <h2 class="herotitle">Consulta Oficial — LegisWeb</h2>
    <p class="herosub">Fonte oficial: benefícios de ICMS (Estadual/MA) + Reforma Tributária (IBS/CBS). Busque por descrição ou NCM.</p>
   </div>
-  <div class="lwbar">
-   <select id="lwTipo">
+  <div class="filterbox">
+   <div class="fb-f"><label>Tipo de consulta</label><select id="lwTipo">
     <optgroup label="Combinada">
      <option value="completa">ICMS + Reforma (completo)</option>
     </optgroup>
@@ -402,14 +402,13 @@ table{border-collapse:collapse}
      <option value="tratamento-administrativo-exportacao">Trat. Adm. Exportação</option>
      <option value="empresas">Base Empresarial (CNPJ)</option>
     </optgroup>
-   </select>
-   <input id="lwInput" placeholder="produto, NCM, CFOP, CST, GTIN, CNPJ… (conforme a consulta)">
-   <button id="lwGo">Consultar</button>
-  </div>
-  <div class="lwbar" id="lwPerfil" style="margin-top:10px">
-   <select id="lwEtapa"><option value="varejo">Varejo</option><option value="atacado">Atacado</option><option value="industria">Indústria / Importador</option><option value="produtor">Produtor Rural</option></select>
-   <select id="lwOper"><option value="interna_consumidor">Interna — consumidor final</option><option value="interna">Interna — empresa (contribuinte)</option><option value="inter">Interestadual — empresa</option><option value="consumidor">Interestadual — consumidor final</option></select>
-   <select id="lwReg"><option value="lucro_presumido">Lucro Presumido</option><option value="lucro_real">Lucro Real</option><option value="simples">Simples Nacional</option><option value="mei">MEI</option></select>
+   </select></div>
+   <div class="fb-grid" id="lwPerfil">
+    <div class="fb-f"><label>Regime</label><select id="lwReg"><option value="lucro_presumido">Lucro Presumido</option><option value="lucro_real">Lucro Real</option><option value="simples">Simples Nacional</option><option value="mei">MEI</option></select></div>
+    <div class="fb-f"><label>Etapa</label><select id="lwEtapa"><option value="varejo">Varejo</option><option value="atacado">Atacado</option><option value="industria">Indústria / Importador</option><option value="produtor">Produtor Rural</option></select></div>
+    <div class="fb-f"><label>Operação</label><select id="lwOper"><option value="interna_consumidor">Interna — consumidor final</option><option value="interna">Interna — empresa (contribuinte)</option><option value="inter">Interestadual — empresa</option><option value="consumidor">Interestadual — consumidor final</option></select></div>
+   </div>
+   <div class="fb-search"><input id="lwInput" placeholder="produto, NCM, CFOP, CST, GTIN, CNPJ…"><button id="lwGo">🔎 Consultar</button></div>
   </div>
   <div id="lwOut" style="max-width:900px;margin:18px auto 0"></div>
  </div>
@@ -560,7 +559,7 @@ async function lwBuscar(){
 }
 $('#lwGo').onclick=lwBuscar;
 $('#lwInput').addEventListener('keydown',e=>{if(e.key==='Enter')lwBuscar();});
-function lwTogglePerfil(){const t=$('#lwTipo').value;$('#lwPerfil').style.display=(t==='completa'||t==='icms')?'flex':'none';}
+function lwTogglePerfil(){const t=$('#lwTipo').value;$('#lwPerfil').style.display=(t==='completa'||t==='icms')?'grid':'none';}
 $('#lwTipo').onchange=lwTogglePerfil;lwTogglePerfil();
 
 // status + perfis
