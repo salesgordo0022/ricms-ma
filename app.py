@@ -99,12 +99,13 @@ def _lw_get(endpoint, **params):
     params["c"] = _LW_CLIENTE
     try:
         r = httpx.get(f"{_LW_BASE}/{endpoint.strip('/')}/", params=params, timeout=25)
-        r.raise_for_status()
         data = r.json()
-    except httpx.HTTPStatusError as e:
-        return False, {"erro": f"HTTP {e.response.status_code}"}
     except Exception as e:
         return False, {"erro": f"Falha na chamada: {e}"}
+    # a LegisWeb devolve erro como lista [{"erro":"..."}] com HTTP 400 (ex.: limite de consumo)
+    if isinstance(data, list):
+        if data and isinstance(data[0], dict) and data[0].get("erro"):
+            return False, {"erro": data[0]["erro"]}
     if isinstance(data, dict):
         msg = str(data.get("mensagem") or data.get("erro") or "")
         if msg and "registros" not in data:
@@ -113,6 +114,8 @@ def _lw_get(endpoint, **params):
         # string ("Nenhum resultado..."). Só a string vira lista vazia.
         if isinstance(data.get("resposta"), str):
             data["resposta"] = []
+    if r.status_code >= 400 and not (isinstance(data, dict) and "registros" in data):
+        return False, {"erro": f"HTTP {r.status_code}"}
     res = (True, data)
     _LW_CACHE[ckey] = res
     return res

@@ -470,7 +470,7 @@ function lwOficialCard(it, oper){
  </div>`;
 }
 function lwIcmsRender(res, oper){
- if(!res||res.ok===false||res.erro)return `<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div>`;
+ if(!res||res.ok===false||res.erro)return `<div class="fna">⚠️ ${escH(lwErroMsg(res&&res.erro))}</div>`;
  const its=res.itens||[];
  if(!its.length)return `<div class="mut small">Nenhum benefício de ICMS encontrado em ${escH(res.uf||'MA')} (tente por descrição).</div>`;
  return its.map(it=>lwOficialCard(it, oper||'interna_consumidor')).join('');
@@ -478,7 +478,7 @@ function lwIcmsRender(res, oper){
 // lista COMPACTA (caixinhas) — confirmação oficial + demais produtos organizados
 function lwIcmsCompact(res){
  const hd='<div class="reformahd">📊 Confirmação na fonte oficial (LegisWeb)</div>';
- if(!res||res.ok===false||res.erro)return '<div class="reformabox">'+hd+`<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div></div>`;
+ if(!res||res.ok===false||res.erro)return '<div class="reformabox">'+hd+`<div class="fna">⚠️ ${escH(lwErroMsg(res&&res.erro))}</div></div>`;
  const its=res.itens||[];
  if(!its.length)return '<div class="reformabox">'+hd+`<div class="mut small">Nada localizado na LegisWeb para este termo.</div></div>`;
  let h='<div class="reformabox">'+hd+`<div class="small mut" style="margin-bottom:6px">${its.length} registro(s) oficiais</div><div class="lwlist">`;
@@ -501,7 +501,7 @@ const LW_LABELS={codigo:'Código',descricao:'Descrição',ncm:'NCM',cest:'CEST',
  cst:'CST',ncm_descricao:'Descrição NCM'};
 function lwGenRender(res,tipo){
  const hd=`<div class="reformahd">📋 ${escH(tipo)} <span class="small mut">(fonte oficial LegisWeb)</span></div>`;
- if(!res||res.ok===false||res.erro)return `<div class="reformabox">${hd}<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div></div>`;
+ if(!res||res.ok===false||res.erro)return `<div class="reformabox">${hd}<div class="fna">⚠️ ${escH(lwErroMsg(res&&res.erro))}</div></div>`;
  const its=res.itens||[];
  if(!its.length)return `<div class="reformabox">${hd}<div class="mut small">Nenhum registro encontrado.</div></div>`;
  let h=`<div class="reformabox">${hd}<div class="small mut" style="margin-bottom:4px">${its.length} registro(s)</div>`;
@@ -514,7 +514,7 @@ function lwGenRender(res,tipo){
  return h+'</div>';
 }
 function lwGtinRender(g){
- if(!g||g.ok===false||g.erro)return `<div class="reformabox"><div class="reformahd">🏷️ GTIN / Código de barras</div><div class="fna">⚠️ ${escH((g&&g.erro)||'indisponível')}</div><div class="small mut" style="margin-top:6px">A consulta por GTIN exige um certificado digital A1 cadastrado no LegisWeb (parâmetro cod_cert).</div></div>`;
+ if(!g||g.ok===false||g.erro)return `<div class="reformabox"><div class="reformahd">🏷️ GTIN / Código de barras</div><div class="fna">⚠️ ${escH(lwErroMsg(g&&g.erro))}</div><div class="small mut" style="margin-top:6px">A consulta por GTIN exige um certificado digital A1 cadastrado no LegisWeb (parâmetro cod_cert).</div></div>`;
  return `<div class="reformabox"><div class="reformahd">🏷️ GTIN ${escH(g.gtin||'')}</div><div class="box"><div><b>${escH(g.produto||'—')}</b></div><div class="small">NCM ${escH(g.ncm||'-')} • CEST ${escH(g.cest||'-')}</div></div><div class="small mut" style="margin-top:6px">Copie o NCM e consulte ICMS + Reforma.</div></div>`;
 }
 async function lwBuscar(){
@@ -701,6 +701,7 @@ function cardHTML(it,regimeRotulo){
   ${reqHTML(it)}
  </div>`;
 }
+function lwErroMsg(e){e=e||'';if(/limite/i.test(e))return 'Limite mensal da LegisWeb atingido (renova no dia 01, ou aumente o plano). A consulta pela base local (aba Consulta) continua funcionando normalmente.';return e||'indisponível';}
 // ---- linguagem simples + cor por tipo de benefício (usado nos cards visuais) ----
 function benPlain(cat){const c=(cat||'').toLowerCase();
  if(c.includes('isen'))return 'Isenção: você NÃO paga o imposto nesta operação (0%).';
@@ -717,7 +718,7 @@ function benCor(cat){const c=(cat||'').toLowerCase();
 // ---- Reforma Tributária (IBS/CBS) — card rico (CST, carga, NCM, cClassTrib) ----
 function reformaRender(res){
  const hd='<div class="reformahd">🇧🇷 Reforma Tributária — IBS/CBS <span class="small mut">(fonte oficial LegisWeb)</span></div>';
- if(!res||res.ok===false||res.erro)return hd+`<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div>`;
+ if(!res||res.ok===false||res.erro)return hd+`<div class="fna">⚠️ ${escH(lwErroMsg(res&&res.erro))}</div>`;
  const its=res.itens||[];
  if(!its.length)return hd+`<div class="mut small" style="padding:6px 0">Sem benefício específico na Reforma para este produto — aplica-se a regra geral do IBS/CBS.</div>`;
  let h=hd;
