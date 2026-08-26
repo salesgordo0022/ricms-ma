@@ -257,6 +257,14 @@ table{border-collapse:collapse}
 .lwbar input{flex:1;min-width:220px}
 .lwbar button{padding:13px 26px;border:0;border-radius:12px;background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;font-weight:700;font-size:15px;cursor:pointer}
 .lwbar button:disabled{opacity:.6;cursor:default}
+.rcard{background:rgba(255,255,255,.03);border:1px solid var(--line);border-left:4px solid #2e75b6;border-radius:12px;padding:13px 16px;margin:8px 0}
+.rc-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.rc-badge{color:#fff;font-weight:700;font-size:12px;padding:4px 11px;border-radius:999px}
+.rc-tag{font-size:11px;color:var(--mut);background:rgba(255,255,255,.06);padding:3px 9px;border-radius:999px}
+.rc-prod{font-weight:600;font-size:14px;margin-bottom:4px}
+.rc-plain{font-size:13px;color:var(--ink);background:rgba(46,117,182,.10);border-radius:8px;padding:8px 11px;margin:6px 0}
+.rc-leg{font-size:12px;color:var(--mut);margin-top:3px}
+.rc-obs{font-size:12px;color:#e0a800;margin-top:5px}
 </style></head><body>
 <canvas id="bgwave"></canvas>
 <header>
@@ -397,11 +405,35 @@ function lwIcmsRender(res){
  const its=res.itens||[];
  if(!its.length)return `<div class="mut small">Nenhum benefício de ICMS encontrado em ${escH(res.uf||'MA')} (tente por descrição).</div>`;
  return its.map(it=>{
-  const vig=it.vigencia_fim?` • vigência até ${escH(it.vigencia_fim)}`:'';
-  const cb=it.cbenef?` • CBENEF ${escH(it.cbenef)}`:'';
-  const bl=it.desc_base_legal?`<div class="small">📖 ${escH(it.desc_base_legal)}</div>`:'';
-  return `<div class="box" style="margin:6px 0"><div><b>${escH(it._categoria||'')}</b>${cb}${vig}</div><div class="small">${escH(it.descricao||'')}</div>${bl}</div>`;
+  const cat=it._categoria||''; const cor=benCor(cat);
+  const vig=it.vigencia_fim?`<span class="rc-tag">📅 até ${escH(it.vigencia_fim)}</span>`:'';
+  const cb=it.cbenef?`<span class="rc-tag">CBENEF ${escH(it.cbenef)}</span>`:'';
+  const pl=benPlain(cat);
+  return `<div class="rcard" style="border-left-color:${cor}">
+   <div class="rc-head"><span class="rc-badge" style="background:${cor}">${escH(cat||'Benefício')}</span>${vig}${cb}</div>
+   <div class="rc-prod">${escH(it.descricao||'')}</div>
+   ${pl?`<div class="rc-plain">💡 ${escH(pl)}</div>`:''}
+   ${it.desc_base_legal?`<div class="rc-leg">📖 ${escH(it.desc_base_legal)}</div>`:''}
+  </div>`;
  }).join('');
+}
+const LW_LABELS={codigo:'Código',descricao:'Descrição',ncm:'NCM',cest:'CEST',titulo:'Título',
+ natureza:'Natureza',fluxo:'Fluxo',aliquota:'Alíquota',aliquota_pis:'PIS',aliquota_cofins:'COFINS',
+ base_legal:'Base legal',cbenef:'CBENEF',vigencia_fim:'Vigência até',estado:'UF',mva:'MVA',
+ cst:'CST',ncm_descricao:'Descrição NCM'};
+function lwGenRender(res,tipo){
+ const hd=`<div class="reformahd">📋 ${escH(tipo)} <span class="small mut">(fonte oficial LegisWeb)</span></div>`;
+ if(!res||res.ok===false||res.erro)return `<div class="reformabox">${hd}<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div></div>`;
+ const its=res.itens||[];
+ if(!its.length)return `<div class="reformabox">${hd}<div class="mut small">Nenhum registro encontrado.</div></div>`;
+ let h=`<div class="reformabox">${hd}<div class="small mut" style="margin-bottom:4px">${its.length} registro(s)</div>`;
+ for(const it of its.slice(0,40)){
+  const linhas=Object.entries(it).filter(([k,v])=>v&&typeof v!=='object'&&!k.startsWith('_'))
+    .map(([k,v])=>`<div class="rc-leg"><b>${escH(LW_LABELS[k]||k)}:</b> ${escH(String(v)).slice(0,400)}</div>`).join('');
+  h+=`<div class="rcard" style="border-left-color:#2e75b6">${linhas||'<div class="small mut">(sem campos)</div>'}</div>`;
+ }
+ if(its.length>40)h+=`<div class="small mut">…e mais ${its.length-40} registro(s).</div>`;
+ return h+'</div>';
 }
 function lwGtinRender(g){
  if(!g||g.ok===false||g.erro)return `<div class="reformabox"><div class="reformahd">🏷️ GTIN / Código de barras</div><div class="fna">⚠️ ${escH((g&&g.erro)||'indisponível')}</div><div class="small mut" style="margin-top:6px">A consulta por GTIN exige um certificado digital A1 cadastrado no LegisWeb (parâmetro cod_cert).</div></div>`;
@@ -582,7 +614,20 @@ function cardHTML(it,regimeRotulo){
   ${reqHTML(it)}
  </div>`;
 }
-// ---- Reforma Tributária (IBS/CBS) — carregada automaticamente após a consulta ----
+// ---- linguagem simples + cor por tipo de benefício (usado nos cards visuais) ----
+function benPlain(cat){const c=(cat||'').toLowerCase();
+ if(c.includes('isen'))return 'Isenção: você NÃO paga o imposto nesta operação (0%).';
+ if(c.includes('reduc')||c.includes('reduç')||c.includes('base'))return 'Redução de base: o imposto é calculado sobre uma base menor — a carga fica reduzida.';
+ if(c.includes('diferi'))return 'Diferimento: o imposto não é pago agora; é adiado para a etapa seguinte da cadeia.';
+ if(c.includes('credit')||c.includes('crédit')||c.includes('aliquota')||c.includes('alíquota'))return 'Redução de alíquota / crédito: o imposto a pagar fica menor.';
+ if(c.includes('substitu'))return 'Substituição Tributária: o imposto já foi recolhido antes; na revenda não se destaca de novo.';
+ if(c.includes('normal'))return 'Tributação normal: sem benefício — imposto cheio.';
+ return '';}
+function benCor(cat){const c=(cat||'').toLowerCase();
+ if(c.includes('isen'))return '#33a852'; if(c.includes('reduc')||c.includes('reduç')||c.includes('base')||c.includes('aliquota')||c.includes('alíquota'))return '#2e75b6';
+ if(c.includes('diferi'))return '#d99a00'; if(c.includes('credit')||c.includes('crédit'))return '#33a852';
+ if(c.includes('substitu'))return '#e0703a'; return '#8a94a6';}
+// ---- Reforma Tributária (IBS/CBS) — card visual ----
 function reformaRender(res){
  const hd='<div class="reformahd">🇧🇷 Reforma Tributária — IBS/CBS <span class="small mut">(fonte oficial LegisWeb)</span></div>';
  if(!res||res.ok===false||res.erro)return hd+`<div class="fna">⚠️ ${escH((res&&res.erro)||'indisponível')}</div>`;
@@ -590,11 +635,17 @@ function reformaRender(res){
  if(!its.length)return hd+`<div class="mut small" style="padding:6px 0">Sem benefício específico na Reforma para este produto — aplica-se a regra geral do IBS/CBS.</div>`;
  let h=hd;
  for(const it of its){
+  const tipo=it.tipo_beneficio||''; const cor=benCor(tipo);
   const red=(it.reducoes||[]).map(r=>(r.percentual&&r.percentual!=='Sim')?(' '+r.percentual):'').join('');
-  h+=`<div class="box" style="margin:6px 0"><div><b>${escH(it.tipo_beneficio||'')}</b>${escH(red)} — ${escH(it.descricao||'')}</div>`+
-     (it.aplicabilidade?`<div class="small">${escH(it.aplicabilidade)}</div>`:'')+
-     (it.base_legal?`<div class="small">📖 ${escH(it.base_legal)}</div>`:'')+
-     (it.observacao?`<div class="small mut">${escH(it.observacao)}</div>`:'')+`</div>`;
+  const pl=benPlain(tipo);
+  h+=`<div class="rcard" style="border-left-color:${cor}">
+   <div class="rc-head"><span class="rc-badge" style="background:${cor}">${escH(tipo||'Benefício')}${escH(red)}</span></div>
+   <div class="rc-prod">${escH(it.descricao||'')}</div>
+   ${pl?`<div class="rc-plain">💡 ${escH(pl)}</div>`:''}
+   ${it.aplicabilidade?`<div class="rc-leg">${escH(it.aplicabilidade)}</div>`:''}
+   ${it.base_legal?`<div class="rc-leg">📖 ${escH(it.base_legal)}</div>`:''}
+   ${it.observacao?`<div class="rc-obs">⚠️ ${escH(it.observacao)}</div>`:''}
+  </div>`;
  }
  return h;
 }
