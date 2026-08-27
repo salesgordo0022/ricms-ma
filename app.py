@@ -1506,6 +1506,9 @@ def status():
         diag["cliente_presente"] = bool(legisweb.CLIENTE)
         diag["uf"] = legisweb.UF_PADRAO
         diag["base_salva"] = len(_LW_CACHE)   # consultas já salvas (base separada, não gastam cota)
+        _tk = legisweb.TOKEN or ""
+        diag["token_hint"] = (_tk[:4] + "…" + _tk[-4:]) if len(_tk) >= 8 else ("(vazio)" if not _tk else _tk)
+        diag["cliente"] = legisweb.CLIENTE
     return {"ok": True, "beneficios": len(BENEF), "modelo": MODEL, "provedor": PROVIDER,
             "chave_configurada": bool(AI_KEY),
             "legisweb": bool(legisweb and legisweb.disponivel()),
