@@ -82,8 +82,9 @@ _LW_CERT = os.getenv("LEGISWEB_COD_CERT", "").strip()  # código do certificado 
 _LW_BASE = "https://www.legisweb.com.br/api"
 _LW_CATS = {2: "Redução de BC", 3: "Isenção", 4: "Crédito Presumido/Outorgado", 5: "Diferimento"}
 _LW_CACHE = {}   # memória: ckey -> (True, data)
-# BASE SEPARADA da LegisWeb: cada consulta com resultado é salva em disco e reusada (não gasta cota de novo)
-_LW_CACHE_FILE = BASE_DIR / "data" / "legisweb_cache.json"
+# BASE SEPARADA da LegisWeb: cada consulta com resultado é salva em disco e reusada (não gasta cota de novo).
+# Local configurável (p/ disco persistente no Render): env LEGISWEB_CACHE_FILE=/var/data/legisweb_cache.json
+_LW_CACHE_FILE = Path(os.getenv("LEGISWEB_CACHE_FILE", "").strip() or (BASE_DIR / "data" / "legisweb_cache.json"))
 
 
 def _lw_cache_load():
