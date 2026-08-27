@@ -81,7 +81,31 @@ _LW_UF = os.getenv("LEGISWEB_UF", "MA").strip() or "MA"
 _LW_CERT = os.getenv("LEGISWEB_COD_CERT", "").strip()  # código do certificado A1 (p/ consulta GTIN)
 _LW_BASE = "https://www.legisweb.com.br/api"
 _LW_CATS = {2: "Redução de BC", 3: "Isenção", 4: "Crédito Presumido/Outorgado", 5: "Diferimento"}
-_LW_CACHE = {}
+_LW_CACHE = {}   # memória: ckey -> (True, data)
+# BASE SEPARADA da LegisWeb: cada consulta com resultado é salva em disco e reusada (não gasta cota de novo)
+_LW_CACHE_FILE = BASE_DIR / "data" / "legisweb_cache.json"
+
+
+def _lw_cache_load():
+    try:
+        raw = json.loads(_LW_CACHE_FILE.read_text(encoding="utf-8"))
+        for k, v in raw.items():
+            _LW_CACHE[k] = (True, v)
+    except Exception:
+        pass
+
+
+def _lw_cache_save():
+    try:
+        raw = {k: v[1] for k, v in _LW_CACHE.items() if v[0]}
+        tmp = _LW_CACHE_FILE.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(_LW_CACHE_FILE)
+    except Exception:
+        pass
+
+
+_lw_cache_load()
 
 
 def _lw_disponivel():
@@ -118,6 +142,7 @@ def _lw_get(endpoint, **params):
         return False, {"erro": f"HTTP {r.status_code}"}
     res = (True, data)
     _LW_CACHE[ckey] = res
+    _lw_cache_save()   # persiste na base separada da LegisWeb
     return res
 
 
@@ -1479,6 +1504,7 @@ def status():
         diag["token_presente"] = bool(legisweb.TOKEN)
         diag["cliente_presente"] = bool(legisweb.CLIENTE)
         diag["uf"] = legisweb.UF_PADRAO
+        diag["base_salva"] = len(_LW_CACHE)   # consultas já salvas (base separada, não gastam cota)
     return {"ok": True, "beneficios": len(BENEF), "modelo": MODEL, "provedor": PROVIDER,
             "chave_configurada": bool(AI_KEY),
             "legisweb": bool(legisweb and legisweb.disponivel()),

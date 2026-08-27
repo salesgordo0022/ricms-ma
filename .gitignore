@@ -33,3 +33,5 @@ data/fix_escopo_ncm.py
 data/fix_reprodutores_legal.py
 data/gen_como_funciona.py
 data/run_estoque.py
+data/legisweb_cache.json
+data/legisweb_cache.json.tmp
