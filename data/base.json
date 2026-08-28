@@ -30001,8 +30001,8 @@
    "vigencia_anexo": "vigente_naost"
   },
   {
-   "produto": "feijão",
-   "ncm": "",
+   "produto": "feijão comum (carioca, preto)",
+   "ncm": "0713.33",
    "ncm_descricao": "Feijao comum (Phaseolus vulgaris), seco, em grao",
    "cest": "n/a (não é ST)",
    "beneficio": "Redução de BC",
@@ -194962,6 +194962,77 @@
    "tem_texto_integral": false,
    "ramo": "supermercado",
    "_origem": "Solução de Consulta (SC 16/2024 e correlatas) 2026-08-14"
+  },
+  {
+   "produto": "feijão de corda (caupi / fradinho / macassar)",
+   "ncm": "0713.35",
+   "ncm_descricao": "Feijao-caupi/fradinho (Vigna unguiculata), seco, em grao",
+   "cest": "n/a (não é ST)",
+   "beneficio": "Redução de BC",
+   "beneficio_resumo": "Base de cálculo reduzida",
+   "reducao_bc": "65,22% (calc.)",
+   "carga_final": "8%",
+   "cst_icms_sugerido": "20",
+   "csosn_sugerido": "900",
+   "cst_piscofins": "01",
+   "cfop_por_operacao": {
+    "entrada_interna": [
+     {
+      "cfop": "1.101",
+      "significado": "Compra para industrialização ou produção rural",
+      "confirmado_na_tabela": true
+     },
+     {
+      "cfop": "1.102",
+      "significado": "Compra para comercialização",
+      "confirmado_na_tabela": true
+     }
+    ],
+    "entrada_interestadual": [
+     {
+      "cfop": "2.101",
+      "significado": "Compra para industrialização ou produção rural",
+      "confirmado_na_tabela": true
+     },
+     {
+      "cfop": "2.102",
+      "significado": "Compra para comercialização",
+      "confirmado_na_tabela": true
+     }
+    ],
+    "saida_interna": [
+     {
+      "cfop": "5.101",
+      "significado": "Venda de produção do estabelecimento",
+      "confirmado_na_tabela": true
+     },
+     {
+      "cfop": "5.102",
+      "significado": "Venda de mercadoria adquirida ou recebida de terceiros",
+      "confirmado_na_tabela": true
+     }
+    ],
+    "saida_interestadual": [
+     {
+      "cfop": "6.101",
+      "significado": "Venda de produção do estabelecimento",
+      "confirmado_na_tabela": true
+     },
+     {
+      "cfop": "6.102",
+      "significado": "Venda de mercadoria adquirida ou recebida de terceiros",
+      "confirmado_na_tabela": true
+     }
+    ]
+   },
+   "cfop_tipico_original": "5101/5102",
+   "base_legal": "Art. 1º, VII; Conv. ICMS 128/94; RA 05/25 (carga 8% desde 23.02.25)",
+   "condicao_resumo": "Para ter direito: deduzir do preço o valor do imposto dispensado e demonstrar isso na Nota Fiscal.",
+   "condicao_texto_integral": "",
+   "fonte_texto_integral": "",
+   "tem_texto_integral": false,
+   "como_funciona": "REDUÇÃO DA BASE DE CÁLCULO do ICMS nas saídas de feijão (cesta básica maranhense): a carga efetiva cai para 8% (redução de 65,22% (calc.) na base de cálculo).",
+   "vigencia_anexo": "vigente_naost"
   }
  ],
  "solucoes_consulta": [

@@ -476,7 +476,7 @@ function lwOficialCard(it, oper){
  const nota=['CFOP '+cf[1],'CST/CSOSN '+m.cst,'Base legal: '+(it.desc_base_legal||'ver dispositivo'),'Indicar o dispositivo legal e o valor do benefício na NF'];
  const notaHTML=nota.map(n=>`<div class="fn"><span class="ck">✔</span><span>${escH(n)}</span></div>`).join('');
  const badge=m.na?`<div class="fbadge off">✘ Tributação normal</div>`:`<div class="fbadge">✓ Benefício disponível</div>`;
- const _desc=it.descricao||'Produto'; const _tit=_desc.length>90?_desc.slice(0,90)+'…':_desc;
+ const _desc=_limpaDesc(it.descricao)||'Produto'; const _tit=_desc.length>90?_desc.slice(0,90)+'…':_desc;
  return `<div class="fcard">
   <div class="fhead"><div><div class="fname" style="font-size:${_desc.length>60?'18px':'22px'}">${escH(_tit)}</div><div class="fsub">${escH(cat)} • fonte oficial LegisWeb${it.ncm?(' • NCM '+escH(it.ncm)):''}</div></div>${badge}</div>
   ${_desc.length>90?`<div class="small mut" style="margin:0 18px 6px">${escH(_desc)}</div>`:''}
@@ -503,7 +503,7 @@ function lwIcmsCompact(res){
  let h='<div class="reformabox">'+hd+`<div class="small mut" style="margin-bottom:6px">${its.length} registro(s) oficiais</div><div class="lwlist">`;
  for(const it of its){
   const cat=it._categoria||''; const cor=benCor(cat);
-  const desc=(it.descricao||''); const dcurto=desc.length>120?desc.slice(0,120)+'…':desc;
+  const desc=_limpaDesc(it.descricao); const dcurto=desc.length>120?desc.slice(0,120)+'…':desc;
   const vig=it.vigencia_fim?` · 📅 ${escH(it.vigencia_fim)}`:'';
   const cb=it.cbenef?` · CBENEF ${escH(it.cbenef)}`:'';
   h+=`<div class="lwrow" style="border-left-color:${cor}">
@@ -737,31 +737,43 @@ function benCor(cat){const c=(cat||'').toLowerCase();
  if(c.includes('diferi'))return '#d99a00'; if(c.includes('credit')||c.includes('crédit'))return '#33a852';
  if(c.includes('substitu'))return '#e0703a'; return '#8a94a6';}
 // ---- Reforma Tributária (IBS/CBS) — card rico (CST, carga, NCM, cClassTrib) ----
+// limpa descrição da TIPI (tira traços/pontos de indentação no começo)
+function _limpaDesc(s){return String(s||'').replace(/^[\s\-–—•·.]+/,'').replace(/\s+/g,' ').trim();}
+// % numérico p/ ordenar (maior redução primeiro)
+function _redNum(r){const m=String(r||'').match(/[\d.,]+/);return m?parseFloat(m[0].replace(',','.')):-1;}
 function reformaRender(res){
  const hd='<div class="reformahd">🇧🇷 Reforma Tributária — IBS/CBS <span class="small mut">(fonte oficial LegisWeb)</span></div>';
  if(!res||res.ok===false||res.erro)return hd+`<div class="fna">⚠️ ${escH(lwErroMsg(res&&res.erro))}</div>`;
  const its=res.itens||[];
  if(!its.length)return hd+`<div class="mut small" style="padding:6px 0">Sem benefício específico na Reforma para este produto — aplica-se a regra geral do IBS/CBS.</div>`;
- let h=hd;
+ // AGRUPA por produto (descrição limpa) — evita mostrar o mesmo produto em vários cards
+ const grupos=new Map();
  for(const it of its){
-  const tipo=it.tipo_beneficio||'Benefício'; const pl=benPlain(tipo);
-  const cfg=[['NCM',it.ncm||'-'],['CST IBS/CBS',it.cst||'-'],['cClassTrib',it.cclasstrib||'-'],['Redução',it.reducao||'-']];
-  const cfgHTML=cfg.map(c=>`<div class="fs"><div class="k">${escH(c[0])}</div><div class="v" style="font-size:16px">${escH(c[1])}</div></div>`).join('');
-  const nota=[];
-  if(it.cst)nota.push('CST '+it.cst+(it.cst_desc?(' — '+it.cst_desc):''));
-  if(it.cclasstrib)nota.push('cClassTrib '+it.cclasstrib);
-  if(it.base_legal)nota.push('Base legal: '+it.base_legal);
-  const notaHTML=nota.map(n=>`<div class="fn"><span class="ck">✔</span><span>${escH(n)}</span></div>`).join('');
+  const nome=_limpaDesc(it.descricao)||('NCM '+(it.ncm||'-'));
+  if(!grupos.has(nome))grupos.set(nome,{nome, ncm:it.ncm||'-', linhas:[]});
+  const g=grupos.get(nome);
+  // dedup de linhas idênticas (mesmo tipo+cst+cclasstrib+redução)
+  const ass=(it.tipo_beneficio||'')+'|'+(it.cst||'')+'|'+(it.cclasstrib||'')+'|'+(it.reducao||'');
+  if(!g.linhas.some(l=>l._ass===ass)){it._ass=ass;g.linhas.push(it);}
+ }
+ let h=hd;
+ for(const g of grupos.values()){
+  // linha principal = a de MAIOR redução (cesta básica costuma ser a redução); senão a 1ª
+  const principal=[...g.linhas].sort((a,b)=>_redNum(b.reducao)-_redNum(a.reducao))[0];
+  const tipo=principal.tipo_beneficio||'Benefício'; const pl=benPlain(tipo);
+  const cfg=[['NCM',g.ncm],['CST IBS/CBS',principal.cst||'-'],['cClassTrib',principal.cclasstrib||'-'],['Redução',principal.reducao||(_redNum(principal.reducao)>=0?principal.reducao:'—')]];
+  const cfgHTML=cfg.map(c=>`<div class="fs"><div class="k">${escH(c[0])}</div><div class="v" style="font-size:16px">${escH(c[1]||'—')}</div></div>`).join('');
+  // outras classificações possíveis (compacto)
+  const outras=g.linhas.filter(l=>l!==principal);
+  const outrasHTML=outras.length?`<div class="fsec"><div class="ftitle"><span class="n">2</span> Outras classificações possíveis <span class="small mut">(escolha conforme seu enquadramento)</span></div>
+    <div class="lwlist">${outras.map(l=>`<div class="lwrow" style="border-left-color:#2e75b6"><div class="small"><b>${escH(l.tipo_beneficio||'—')}</b>${l.reducao?(' · redução '+escH(l.reducao)):''} · CST ${escH(l.cst||'-')} · cClassTrib ${escH(l.cclasstrib||'-')}</div></div>`).join('')}</div></div>`:'';
   h+=`<div class="fcard" style="margin:10px 0">
-   <div class="fhead"><div><div class="fname">${escH(it.descricao||'')}</div><div class="fsub">${escH(tipo)}${it.reducao?(' • '+escH(it.reducao)):''} • IBS/CBS</div></div><div class="fbadge">✓ Reforma</div></div>
+   <div class="fhead"><div><div class="fname">${escH(g.nome)}</div><div class="fsub">${escH(tipo)}${principal.reducao?(' • '+escH(principal.reducao)):''} • IBS/CBS • NCM ${escH(g.ncm)}</div></div><div class="fbadge">✓ Reforma</div></div>
    ${pl?`<div class="rc-plain" style="margin:0 18px">💡 ${escH(pl)}</div>`:''}
-   <div class="fsec"><div class="ftitle"><span class="n">1</span> Classificação IBS/CBS</div><div class="fstat">${cfgHTML}</div>
-    ${it.cst_desc?`<div class="small mut" style="margin-top:8px">CST ${escH(it.cst)}: ${escH(it.cst_desc)}</div>`:''}
-    ${it.cclasstrib_desc?`<div class="small mut" style="margin-top:3px">cClassTrib ${escH(it.cclasstrib)}: ${escH(it.cclasstrib_desc)}</div>`:''}</div>
-   <div class="fsec"><div class="ftitle"><span class="n">2</span> Como se aplica</div>
-    ${it.aplicabilidade?`<div class="small">${escH(it.aplicabilidade)}</div>`:''}
-    ${notaHTML?`<div class="fnota" style="margin-top:8px">${notaHTML}</div>`:''}
-    ${it.observacao?`<div class="rc-obs" style="margin-top:6px">⚠️ ${escH(it.observacao)}</div>`:''}</div>
+   <div class="fsec"><div class="ftitle"><span class="n">1</span> Classificação IBS/CBS (recomendada)</div><div class="fstat">${cfgHTML}</div>
+    ${principal.cst_desc?`<div class="small mut" style="margin-top:8px">CST ${escH(principal.cst)}: ${escH(principal.cst_desc)}</div>`:''}
+    ${principal.cclasstrib_desc?`<div class="small mut" style="margin-top:3px">cClassTrib ${escH(principal.cclasstrib)}: ${escH(principal.cclasstrib_desc)}</div>`:''}</div>
+   ${outrasHTML}
   </div>`;
  }
  return h;
