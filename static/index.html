@@ -285,6 +285,22 @@ table{border-collapse:collapse}
 .fb-search button{padding:14px 32px;border:0;border-radius:14px;background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;font-weight:800;font-size:15px;cursor:pointer;white-space:nowrap;box-shadow:0 8px 22px var(--glow);transition:.15s}
 .fb-search button:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .fb-search button:active{transform:translateY(0)}
+/* --- busca afiada e simples --- */
+.fb-search.big{margin-top:0}
+.fb-search.big input{font-size:19px;padding:19px 20px;font-weight:500;border-radius:16px}
+.fb-search.big button{font-size:16px;padding:19px 34px;border-radius:16px}
+.fb-hint{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 4px 0;font-size:13px}
+.fb-det{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--mut,#8a94a6);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:4px 12px;transition:.18s}
+.fb-det.on{color:#fff;background:linear-gradient(180deg,var(--brand),var(--brand2));border-color:transparent;box-shadow:0 4px 12px var(--glow)}
+.fb-hint-ex{color:var(--mut,#8a94a6)}
+.fb-adv-toggle{display:flex;align-items:center;gap:10px;width:100%;margin-top:16px;padding:12px 16px;border:1px dashed var(--line2,#2a2f3a);border-radius:14px;background:transparent;color:var(--ink);font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.fb-adv-toggle:hover{border-color:var(--brand,#2e75b6);background:rgba(46,117,182,.06)}
+.fb-adv-toggle .fb-adv-sum{flex:1;text-align:left;color:var(--mut,#8a94a6);font-weight:500;font-size:13px}
+.fb-adv-toggle .chev{transition:transform .2s}
+.fb-adv-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.fb-adv{margin-top:14px;padding-top:16px;border-top:1px solid var(--line);animation:fbSlide .22s ease}
+@keyframes fbSlide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.fbprodof{margin:10px 0 4px;padding:10px 14px;background:rgba(46,117,182,.10);border:1px solid var(--line);border-radius:12px;font-size:14px}
 </style></head><body>
 <canvas id="bgwave"></canvas>
 <header>
@@ -320,16 +336,19 @@ table{border-collapse:collapse}
   <!-- /RECURSOS EXTRAS -->
   <div class="hero">
    <h2 class="herotitle">Consulte a tributação no Maranhão</h2>
-   <p class="herosub">Escolha como buscar, ajuste o perfil (regime/etapa/operações) e consulte o CFOP exato + o benefício.</p>
+   <p class="herosub">Digite o produto, o NCM ou o código de barras. O sistema descobre o resto.</p>
   </div>
   <div class="filterbox">
-   <div class="fb-grid">
-    <div class="fb-f"><label>Buscar por</label><select id="fbBuscar"><option value="descricao">Descrição</option><option value="ncm">NCM</option><option value="ean">EAN / Código de barras</option></select></div>
-    <div class="fb-f"><label>Regime</label><select id="fbReg"><option value="lucro_presumido">Lucro Presumido</option><option value="lucro_real">Lucro Real</option><option value="simples">Simples Nacional</option><option value="mei">MEI</option></select></div>
-    <div class="fb-f"><label>Etapa</label><select id="fbEtapa"><option value="varejo">Varejo</option><option value="atacado">Atacado</option><option value="industria">Indústria / Importador</option><option value="produtor">Produtor Rural</option></select></div>
+   <div class="fb-search big"><input id="fbProd" placeholder="Ex.: arroz · 1006.30.21 · 7891234567890" autocomplete="off"><button id="fbGo">🔎 Consultar</button></div>
+   <div class="fb-hint"><span id="fbDet" class="fb-det">Digite para começar</span><span class="fb-hint-ex">Aceita nome do produto, NCM ou EAN — não precisa escolher nada.</span></div>
+   <button type="button" class="fb-adv-toggle" id="fbAdvToggle" aria-expanded="false"><span>⚙️ Ajustar perfil</span> <span class="fb-adv-sum" id="fbAdvSum">Varejo · Lucro Presumido · Venda interna → consumidor</span> <span class="chev">▾</span></button>
+   <div class="fb-adv" id="fbAdv" hidden>
+    <div class="fb-grid">
+     <div class="fb-f"><label>Regime</label><select id="fbReg"><option value="lucro_presumido">Lucro Presumido</option><option value="lucro_real">Lucro Real</option><option value="simples">Simples Nacional</option><option value="mei">MEI</option></select></div>
+     <div class="fb-f"><label>Etapa</label><select id="fbEtapa"><option value="varejo">Varejo</option><option value="atacado">Atacado</option><option value="industria">Indústria / Importador</option><option value="produtor">Produtor Rural</option></select></div>
+    </div>
+    <div class="fb-f"><label>Operações (marque uma ou mais)</label><div id="fbOps" class="opchecks"></div></div>
    </div>
-   <div class="fb-f"><label>Operações (marque uma ou mais)</label><div id="fbOps" class="opchecks"></div></div>
-   <div class="fb-search"><input id="fbProd" placeholder="Descreva o produto, NCM ou EAN…"><button id="fbGo">🔎 Consultar</button></div>
   </div>
   <div class="pwrap" style="display:none">
    <div class="pcard open" id="pcard">
@@ -752,7 +771,8 @@ $('#cBtn').onclick=async()=>{const prod=$('#cProd').value.trim();if(!prod){retur
  const r=await api('/consulta',{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({produto:prod,etapa:$('#cEtapa').value,operacao:$('#cOper').value,operacoes:[...pOps],regime:$('#cReg').value,perfil_id:$('#perfilSel').value||null,explicar_ia:true})});
  if(!r.encontrou){const f=r.fallback;
-   let hf=`<div class="card" style="border-left-color:var(--bad)"><b class="warn">✘ ${f.titulo}</b><div class="kv"><div class="box"><div class="k">ICMS</div><div class="v">${f.icms}</div></div><div class="box"><div class="k">CFOP</div><div class="v cfopbig" style="font-size:18px">${f.cfop}</div></div><div class="box"><div class="k">Federal</div><div class="v">${f.federal}</div></div></div><p class="small mut">${f.obs}</p></div>`;
+   const prodOf=r.ncm_descricao_oficial?`<div class="fbprodof">📦 <b>${escH(r.ncm_descricao_oficial)}</b> <span class="mut">— descrição oficial do NCM${r.ncm_descricao_fonte==='LegisWeb'?' (LegisWeb)':''}</span></div>`:'';
+   let hf=`<div class="card" style="border-left-color:var(--bad)"><b class="warn">✘ ${f.titulo}</b>${prodOf}<div class="kv"><div class="box"><div class="k">ICMS</div><div class="v">${f.icms}</div></div><div class="box"><div class="k">CFOP</div><div class="v cfopbig" style="font-size:18px">${f.cfop}</div></div><div class="box"><div class="k">Federal</div><div class="v">${f.federal}</div></div></div><p class="small mut">${f.obs}</p></div>`;
    if(r.sugestao_ia){hf+=`<div class="ia">🤖 <b>Orientação da IA</b><div class="iamd">${mdLite(r.sugestao_ia)}</div></div>`;}
    $('#cOut').innerHTML=hf;
    // Reforma também pode ter dado p/ o NCM mesmo sem benefício de ICMS
@@ -943,15 +963,32 @@ window.quickBusca=(t)=>{$('#cProd').value=t;const fp=$('#fbProd');if(fp)fp.value
 const FB_OPS=[['interna_consumidor','Interna → consumidor'],['interna','Interna → empresa'],['inter','Interest. → empresa'],['consumidor','Interest. → consumidor'],['rural_interna','Rural interna'],['rural_interestadual','Rural interest.']];
 function fbRenderOps(){const el=$('#fbOps');if(!el)return;el.innerHTML=FB_OPS.map(o=>`<label class="opck"><input type="checkbox" value="${o[0]}"${o[0]==='interna_consumidor'?' checked':''}> ${o[1]}</label>`).join('');}
 fbRenderOps();
+// detecta sozinho o tipo do que foi digitado (sem o cliente escolher nada)
+function fbDetecta(v){
+ const t=(v||'').trim(); const dig=t.replace(/\D/g,'');
+ if(!t)return{modo:'',rot:'Digite para começar'};
+ // EAN/GTIN: só números, 8/12/13/14 dígitos
+ if(/^\d+$/.test(t.replace(/[\s.]/g,''))&&[8,12,13,14].includes(dig.length)&&t.indexOf('.')<0)
+   return{modo:'ean',rot:'📷 Código de barras (EAN)'};
+ // NCM: praticamente só dígitos/pontos, 4 a 8 dígitos
+ if(dig.length>=4&&dig.length<=8&&!/[a-zA-Z]/.test(t.replace(/[\d.\s/-]/g,'')))
+   return{modo:'ncm',rot:'🔢 NCM '+dig.replace(/(\d{4})(\d{2})?(\d{2})?/,(m,a,b,c)=>a+(b?'.'+b:'')+(c?'.'+c:''))};
+ return{modo:'descricao',rot:'🔤 Descrição do produto'};
+}
+function fbAtualizaDet(){const d=fbDetecta($('#fbProd').value);const el=$('#fbDet');if(!el)return;el.textContent=d.rot;el.classList.toggle('on',!!d.modo);}
+function fbAtualizaSum(){const s=$('#fbAdvSum');if(!s)return;
+ const et=$('#fbEtapa').selectedOptions[0]?.text||'';const rg=$('#fbReg').selectedOptions[0]?.text||'';
+ const ops=[...document.querySelectorAll('#fbOps input:checked')].map(c=>c.parentNode.textContent.trim());
+ s.textContent=[et,rg,ops.length?ops.join(' · '):'sem operação'].filter(Boolean).join(' · ');}
 async function fbConsultar(){
- let prod=($('#fbProd').value||'').trim(); const modo=$('#fbBuscar').value;
+ let prod=($('#fbProd').value||'').trim(); const modo=fbDetecta(prod).modo;
  if(!prod){$('#fbProd').focus();return;}
  const ops=[...document.querySelectorAll('#fbOps input:checked')].map(c=>c.value); if(!ops.length)ops.push('interna_consumidor');
  if(modo==='ean'){
   $('#cOut').innerHTML='<p class="mut">Resolvendo código de barras (GTIN)…</p>';
   try{const g=await api('/gtin?gtin='+encodeURIComponent(prod));
-   if(g&&g.ok&&g.ncm){$('#cOut').insertAdjacentHTML('afterbegin','');prod=g.ncm;}
-   else{$('#cOut').innerHTML='<div class="fna">⚠️ '+escH((g&&g.erro)||'Não foi possível resolver o EAN.')+' A consulta por EAN exige o certificado GTIN (cod_cert) configurado no LegisWeb.</div>';return;}
+   if(g&&g.ok&&g.ncm){prod=g.ncm;}
+   else{$('#cOut').innerHTML='<div class="fna">⚠️ '+escH((g&&g.erro)||'Não foi possível resolver o EAN.')+' A consulta por EAN exige o certificado GTIN (cod_cert) configurado no LegisWeb — você pode digitar o NCM ou o nome do produto.</div>';return;}
   }catch(e){$('#cOut').innerHTML='<div class="fna">⚠️ Falha ao resolver o EAN.</div>';return;}
  }
  $('#cProd').value=prod; $('#cEtapa').value=$('#fbEtapa').value; $('#cReg').value=$('#fbReg').value; $('#cOper').value=ops[0];
@@ -959,7 +996,11 @@ async function fbConsultar(){
  $('#cBtn').click();
 }
 if($('#fbGo'))$('#fbGo').onclick=fbConsultar;
-if($('#fbProd'))$('#fbProd').addEventListener('keydown',e=>{if(e.key==='Enter')fbConsultar();});
+if($('#fbProd')){$('#fbProd').addEventListener('keydown',e=>{if(e.key==='Enter')fbConsultar();});$('#fbProd').addEventListener('input',fbAtualizaDet);}
+if($('#fbAdvToggle'))$('#fbAdvToggle').onclick=function(){const a=$('#fbAdv');const op=a.hasAttribute('hidden');if(op){a.removeAttribute('hidden');}else{a.setAttribute('hidden','');}this.setAttribute('aria-expanded',op?'true':'false');};
+['#fbReg','#fbEtapa'].forEach(id=>{const e=$(id);if(e)e.addEventListener('change',fbAtualizaSum);});
+document.addEventListener('change',e=>{if(e.target&&e.target.closest&&e.target.closest('#fbOps'))fbAtualizaSum();});
+fbAtualizaSum();fbAtualizaDet();
 loadSegmentos();
 
 // ===== BENEFÍCIOS — REDESIGN (segmentos + filtros + cards + gaveta lateral) =====

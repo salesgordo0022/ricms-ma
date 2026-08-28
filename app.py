@@ -849,6 +849,43 @@ def resolver(produto, etapa, operacao, regime, perfil=None, operacoes=None):
     out["itens"].sort(key=lambda x: 1 if x.get("nao_aplica") else 0)  # aplicáveis primeiro
     return out
 
+
+def _ncm_desc_local(cod_ncm):
+    """Descrição OFICIAL do NCM a partir da própria base (prefixo 8>6>4 díg). '' se não achar."""
+    if not cod_ncm or len(cod_ncm) < 4:
+        return ""
+    for L in (8, 6, 4):
+        if len(cod_ncm) < L:
+            continue
+        pref = cod_ncm[:L]
+        for it in IDX:
+            nd = it.get("ncm_d") or ""
+            if len(nd) >= L and nd[:L] == pref:
+                d = (it["b"].get("ncm_descricao") or "").strip()
+                if d:
+                    return d
+    return ""
+
+
+async def _ncm_desc_oficial(cod_ncm, produto):
+    """Descrição oficial do NCM: 1º base local; 2º Reforma/LegisWeb (cacheado, não gasta em repetição).
+    Retorna (descricao, fonte). Serve p/ ATERRAR a IA e não deixar chutar o produto."""
+    d = _ncm_desc_local(cod_ncm)
+    if d:
+        return d, "base"
+    if cod_ncm and len(cod_ncm) >= 6 and legisweb and legisweb.disponivel():
+        try:
+            ncm6 = cod_ncm[:6]
+            ncmfmt = ncm6[:4] + "." + ncm6[4:6]
+            rf = legisweb.reforma(ncm=ncmfmt)
+            for it in (rf.get("itens") or []):
+                dd = (it.get("descricao") or "").strip().lstrip("-").strip()
+                if dd:
+                    return dd, "LegisWeb"
+        except Exception:
+            pass
+    return "", ""
+
 # ---------- OpenRouter ----------
 def _resposta_valida(texto):
     """Detecta respostas ruins (thinking traces, safety lixo, vazias)."""
@@ -1020,27 +1057,45 @@ async def consulta(inp: ConsultaIn):
         # generica (o que o cliente deve colocar) e SUGERE se ha beneficio p/ ele ou similar.
         fb = res.get("fallback", {})
         cod_ncm = _dig(inp.produto)
+        # descricao OFICIAL do NCM (base local -> senao Reforma/LegisWeb, cacheado) p/ ATERRAR a IA
+        desc_oficial, desc_fonte = await _ncm_desc_oficial(cod_ncm, inp.produto)
+        if desc_oficial:
+            res["ncm_descricao_oficial"] = desc_oficial
+            res["ncm_descricao_fonte"] = desc_fonte
+            if isinstance(res.get("fallback"), dict):
+                res["fallback"]["produto_oficial"] = desc_oficial
+        if desc_oficial:
+            bloco_produto = (
+                "### O que e este produto\n"
+                f"A descricao OFICIAL (TIPI) do NCM {cod_ncm or inp.produto} e: \"{desc_oficial}\". "
+                "Use EXATAMENTE essa mercadoria — NAO invente nem troque por outro produto. "
+                "Escreva em 1 frase o que e, em linguagem simples.\n\n"
+            )
+        else:
+            bloco_produto = (
+                "### O que e este produto\n"
+                "NAO foi possivel identificar a mercadoria deste NCM com seguranca na nossa base. "
+                "Diga isso honestamente e peca para o cliente confirmar o produto/NCM na TIPI. "
+                "NAO invente o nome do produto nem o capitulo se nao tiver certeza.\n\n"
+            )
         instrucao = (
             f"O cliente pesquisou: \"{inp.produto}\""
             + (f" (NCM {cod_ncm})" if cod_ncm else "")
             + f". Contexto: etapa={etapa}, operacoes={ops}, regime={regime}, UF=Maranhao.\n"
             "Este produto NAO consta nas listas de beneficio de ICMS/MA da nossa base. "
             "Escreva uma orientacao ACOLHEDORA e pratica em Markdown, nesta ordem:\n\n"
-            "### O que e este produto\n"
-            "Identifique, pela classificacao do NCM, qual e a mercadoria (familia/capitulo). "
-            "Se o NCM for invalido ou incompleto, diga isso e peca o NCM completo.\n\n"
+            + bloco_produto +
             "### Como tributar (regra geral, sem beneficio)\n"
             f"- ICMS: {fb.get('icms','')}\n"
             f"- CFOP: {fb.get('cfop','')} (para a operacao selecionada)\n"
             f"- Federal: {fb.get('federal','')}\n"
             "Explique em 1 frase simples o que o cliente deve colocar na nota.\n\n"
             "### Vale conferir (possiveis beneficios)\n"
-            "Com base no TIPO do produto, SUGIRA onde pode haver beneficio no RICMS/MA "
-            "(ex.: se for medicamento/suplemento -> conferir lista da CESTA BASICA, Convenio 87/02 de "
-            "medicamentos, ou reducao/isencao especifica; se for insumo agropecuario -> Convenio 100/97; "
-            "se for material de construcao -> possivel reducao de BC). Deixe CLARO que e uma SUGESTAO a "
-            "verificar, nao uma norma confirmada. NAO invente numero de decreto, aliquota ou artigo: "
-            "se nao tiver certeza da base legal, diga 'confirmar a base legal'.\n\n"
+            "Com base no PRODUTO OFICIAL acima, SUGIRA onde pode haver beneficio no RICMS/MA "
+            "(ex.: alimento da CESTA BASICA -> reducao/isencao; medicamento -> Convenio 87/02; "
+            "insumo agropecuario -> Convenio 100/97; material de construcao -> possivel reducao de BC). "
+            "Deixe CLARO que e uma SUGESTAO a verificar, nao uma norma confirmada. NAO invente numero de "
+            "decreto, aliquota ou artigo: se nao tiver certeza da base legal, diga 'confirmar a base legal'.\n\n"
             "Seja direto, no maximo ~150 palavras. Nao use jargao sem explicar."
         )
         msgs = [{"role": "system", "content": SYS_PROMPT},
