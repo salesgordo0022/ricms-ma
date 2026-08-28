@@ -775,30 +775,12 @@ $('#cBtn').onclick=async()=>{const prod=$('#cProd').value.trim();if(!prod){retur
    let hf=`<div class="card" style="border-left-color:var(--bad)"><b class="warn">✘ ${f.titulo}</b>${prodOf}<div class="kv"><div class="box"><div class="k">ICMS</div><div class="v">${f.icms}</div></div><div class="box"><div class="k">CFOP</div><div class="v cfopbig" style="font-size:18px">${f.cfop}</div></div><div class="box"><div class="k">Federal</div><div class="v">${f.federal}</div></div></div><p class="small mut">${f.obs}</p></div>`;
    if(r.sugestao_ia){hf+=`<div class="ia">🤖 <b>Orientação da IA</b><div class="iamd">${mdLite(r.sugestao_ia)}</div></div>`;}
    $('#cOut').innerHTML=hf;
-   // Reforma também pode ter dado p/ o NCM mesmo sem benefício de ICMS
-   (async()=>{try{const isN=/^[\d.\s]{4,}$/.test(prod);const q=isN?('ncm='+encodeURIComponent(prod)):('descricao='+encodeURIComponent(prod));const ref=await api('/reforma?'+q);if(ref&&ref.ok&&ref.total){const rb=document.createElement('div');rb.className='reformabox';rb.innerHTML=reformaRender(ref);$('#cOut').appendChild(rb);}}catch(e){}})();
    return;}
  let h='';
  for(const it of r.itens){h+=cardHTML(it,r.consulta&&r.consulta.regime_rotulo);}
  if(r.explicacao_ia)h+=`<div class="ia">🤖 <b>Análise da IA</b><div class="iamd">${mdLite(r.explicacao_ia)}</div></div>`;
  $('#cOut').innerHTML=h;
- // ---- Reforma Tributária: carrega AUTOMÁTICO para o produto pesquisado ----
- const first=r.itens&&r.itens[0];
- if(first){
-  const rsec=document.createElement('div'); rsec.className='reformabox';
-  rsec.innerHTML='<div class="reformahd">🇧🇷 Reforma Tributária — IBS/CBS</div><div class="mut small">Carregando dados oficiais…</div>';
-  $('#cOut').appendChild(rsec);
-  const ncm=(first.ncm||'').trim();
-  const termo=(first.produto||prod||'').split('(')[0].trim();
-  const q=ncm?('ncm='+encodeURIComponent(ncm)):('descricao='+encodeURIComponent(termo));
-  api('/reforma?'+q).then(res=>{
-    let rr=reformaRender(res);
-    // se por NCM não achou, tenta por descrição (a base indexa muito por descrição)
-    if(ncm&&res&&(res.total===0)&&termo){
-      api('/reforma?descricao='+encodeURIComponent(termo)).then(r2=>{rsec.innerHTML=reformaRender(r2);}).catch(()=>{rsec.innerHTML=rr;});
-    }else{rsec.innerHTML=rr;}
-  }).catch(()=>{rsec.innerHTML='<div class="reformahd">🇧🇷 Reforma Tributária — IBS/CBS</div><div class="fna">⚠️ Falha ao carregar.</div>';});
- }
+ // (Reforma/IBS-CBS e demais dados do LegisWeb ficam SÓ na aba LegisWeb — aqui é a nossa base)
 };
 
 // ---- busca de produto estilo PromptInput (adaptado; mantém cProd/cEtapa/cOper/cBtn) ----
