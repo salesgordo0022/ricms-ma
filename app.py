@@ -333,6 +333,8 @@ def buscar(query, limite=8):
     q = (query or "").strip()
     qd = _dig(q)
     qn = _expand(_norm(q))
+    # consulta é um NCM puro? (só dígitos/pontos/barra/traço) -> NÃO cair na busca textual
+    pure_ncm = len(qd) >= 4 and not re.sub(r"[\d.\s/\-]", "", q)
     res = []
     if len(qd) >= 4:  # por NCM (8 dígitos exatos > prefixo > NCM contendo a busca)
         for it in IDX:
@@ -346,7 +348,14 @@ def buscar(query, limite=8):
                     score = 60
                 res.append((score, it["b"]))
         res.sort(key=lambda x: -x[0])
-    if not res and len(qn) >= 3:  # por descricao (token + palavra inteira + relevancia)
+        # fallback por POSIÇÃO (4 dígitos) — ex.: 1006.10.10 -> família 1006 (arroz)
+        if not res and len(qd) >= 4:
+            pref = qd[:4]
+            for it in IDX:
+                nd = it["ncm_d"]
+                if nd and nd[:4] == pref:
+                    res.append((40, it["b"]))
+    if not res and not pure_ncm and len(qn) >= 3:  # por descricao (token + palavra inteira + relevancia)
         qnorm = _norm(q)
         toks = [t for t in qn.split() if len(t) > 2]        # expandido (com sinonimos)
         otoks = [t for t in qnorm.split() if len(t) > 2]    # termos originais do usuario
@@ -376,7 +385,7 @@ def buscar(query, limite=8):
             if score:
                 res.append((score, it["b"]))
         res.sort(key=lambda x: -x[0])
-    if not res and len(qn) >= 3:  # FUZZY por trigramas (tolera erro de digitacao)
+    if not res and not pure_ncm and len(qn) >= 3:  # FUZZY por trigramas (tolera erro de digitacao)
         qt = _trigrams(_norm(q))
         cand = []
         for it in IDX:
