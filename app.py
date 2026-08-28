@@ -25,8 +25,11 @@ if GROQ_KEY:
     PROVIDER = "Groq"
     AI_KEY = GROQ_KEY
     AI_URL = "https://api.groq.com/openai/v1/chat/completions"
-    MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-    FALLBACK_MODEL = os.getenv("GROQ_FALLBACK", "")
+    MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+    # modelos descontinuados no Groq -> auto-corrige p/ o atual (evita 404 se env estiver velho)
+    if MODEL.strip() in ("llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768", "llama-3.1-70b-versatile"):
+        MODEL = "openai/gpt-oss-120b"
+    FALLBACK_MODEL = os.getenv("GROQ_FALLBACK", "openai/gpt-oss-20b")
 elif OPENROUTER_KEY:
     PROVIDER = "OpenRouter"
     AI_KEY = OPENROUTER_KEY
@@ -1010,8 +1013,41 @@ async def consulta(inp: ConsultaIn):
         )
         msgs = [{"role": "system", "content": SYS_PROMPT},
                 {"role": "user", "content": instrucao}]
-        txt, err = await chamar_ia(msgs)
+        txt, err = await chamar_ia(msgs, max_tokens=1600)
         res["explicacao_ia"] = txt or f"(IA indisponivel: {err})"
+    elif inp.explicar_ia and not res.get("encontrou"):
+        # NAO achou beneficio na base -> IA identifica o produto do NCM, orienta a tributacao
+        # generica (o que o cliente deve colocar) e SUGERE se ha beneficio p/ ele ou similar.
+        fb = res.get("fallback", {})
+        cod_ncm = _dig(inp.produto)
+        instrucao = (
+            f"O cliente pesquisou: \"{inp.produto}\""
+            + (f" (NCM {cod_ncm})" if cod_ncm else "")
+            + f". Contexto: etapa={etapa}, operacoes={ops}, regime={regime}, UF=Maranhao.\n"
+            "Este produto NAO consta nas listas de beneficio de ICMS/MA da nossa base. "
+            "Escreva uma orientacao ACOLHEDORA e pratica em Markdown, nesta ordem:\n\n"
+            "### O que e este produto\n"
+            "Identifique, pela classificacao do NCM, qual e a mercadoria (familia/capitulo). "
+            "Se o NCM for invalido ou incompleto, diga isso e peca o NCM completo.\n\n"
+            "### Como tributar (regra geral, sem beneficio)\n"
+            f"- ICMS: {fb.get('icms','')}\n"
+            f"- CFOP: {fb.get('cfop','')} (para a operacao selecionada)\n"
+            f"- Federal: {fb.get('federal','')}\n"
+            "Explique em 1 frase simples o que o cliente deve colocar na nota.\n\n"
+            "### Vale conferir (possiveis beneficios)\n"
+            "Com base no TIPO do produto, SUGIRA onde pode haver beneficio no RICMS/MA "
+            "(ex.: se for medicamento/suplemento -> conferir lista da CESTA BASICA, Convenio 87/02 de "
+            "medicamentos, ou reducao/isencao especifica; se for insumo agropecuario -> Convenio 100/97; "
+            "se for material de construcao -> possivel reducao de BC). Deixe CLARO que e uma SUGESTAO a "
+            "verificar, nao uma norma confirmada. NAO invente numero de decreto, aliquota ou artigo: "
+            "se nao tiver certeza da base legal, diga 'confirmar a base legal'.\n\n"
+            "Seja direto, no maximo ~150 palavras. Nao use jargao sem explicar."
+        )
+        msgs = [{"role": "system", "content": SYS_PROMPT},
+                {"role": "user", "content": instrucao}]
+        txt, err = await chamar_ia(msgs, max_tokens=1400)
+        if txt:
+            res["sugestao_ia"] = txt
     return res
 
 @app.get("/api/segmentos")  # RECURSOS EXTRAS (removível): atalhos por segmento

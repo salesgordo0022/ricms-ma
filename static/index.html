@@ -532,7 +532,9 @@ async function lwBuscar(){
      body:JSON.stringify({produto:val,etapa:$('#lwEtapa').value,operacao:_ops[0],operacoes:_ops,regime:$('#lwReg').value,explicar_ia:false})});
    let h='';
    if(r.encontrou){for(const it of r.itens){h+=cardHTML(it,r.consulta&&r.consulta.regime_rotulo);}}
-   else if(r.fallback){const f=r.fallback;h+=`<div class="fcard"><div class="fhead"><div><div class="fname">${escH(val)}</div><div class="fsub">${escH(f.titulo||'Sem benefício localizado')}</div></div><div class="fbadge off">✘ Tributação normal</div></div><div class="fsec"><div class="fstat"><div class="fs"><div class="k">ICMS</div><div class="v">${escH(f.icms||'23%')}</div></div><div class="fs"><div class="k">CFOP</div><div class="v cfopbig">${escH(f.cfop||'')}</div></div></div></div></div>`;}
+   else if(r.fallback){const f=r.fallback;h+=`<div class="fcard"><div class="fhead"><div><div class="fname">${escH(val)}</div><div class="fsub">${escH(f.titulo||'Sem benefício localizado')}</div></div><div class="fbadge off">✘ Tributação normal</div></div><div class="fsec"><div class="fstat"><div class="fs"><div class="k">ICMS</div><div class="v">${escH(f.icms||'23%')}</div></div><div class="fs"><div class="k">CFOP</div><div class="v cfopbig">${escH(f.cfop||'')}</div></div></div></div></div>`;
+    // sem benefício -> pede orientação da IA (o que colocar + sugestão de benefício)
+    try{const rs=await api('/consulta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({produto:val,etapa:$('#lwEtapa').value,operacao:_ops[0],operacoes:_ops,regime:$('#lwReg').value,explicar_ia:true})});if(rs&&rs.sugestao_ia){h+=`<div class="ia">🤖 <b>Orientação da IA</b><div class="iamd">${mdLite(rs.sugestao_ia)}</div></div>`;}}catch(e){}}
    // 2) Reforma (IBS/CBS)
    const ref=await api('/reforma?'+q);h+='<div class="reformabox">'+reformaRender(ref)+'</div>';
    // 3) confirmação oficial (organizada em caixinhas)
@@ -749,7 +751,13 @@ $('#cBtn').onclick=async()=>{const prod=$('#cProd').value.trim();if(!prod){retur
  $('#cOut').innerHTML='<p class="mut">Consultando…</p>';
  const r=await api('/consulta',{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({produto:prod,etapa:$('#cEtapa').value,operacao:$('#cOper').value,operacoes:[...pOps],regime:$('#cReg').value,perfil_id:$('#perfilSel').value||null,explicar_ia:true})});
- if(!r.encontrou){const f=r.fallback;$('#cOut').innerHTML=`<div class="card" style="border-left-color:var(--bad)"><b class="warn">✘ ${f.titulo}</b><div class="kv"><div class="box"><div class="k">ICMS</div><div class="v">${f.icms}</div></div><div class="box"><div class="k">CFOP</div><div class="v cfopbig" style="font-size:18px">${f.cfop}</div></div><div class="box"><div class="k">Federal</div><div class="v">${f.federal}</div></div></div><p class="small mut">${f.obs}</p></div>`;return;}
+ if(!r.encontrou){const f=r.fallback;
+   let hf=`<div class="card" style="border-left-color:var(--bad)"><b class="warn">✘ ${f.titulo}</b><div class="kv"><div class="box"><div class="k">ICMS</div><div class="v">${f.icms}</div></div><div class="box"><div class="k">CFOP</div><div class="v cfopbig" style="font-size:18px">${f.cfop}</div></div><div class="box"><div class="k">Federal</div><div class="v">${f.federal}</div></div></div><p class="small mut">${f.obs}</p></div>`;
+   if(r.sugestao_ia){hf+=`<div class="ia">🤖 <b>Orientação da IA</b><div class="iamd">${mdLite(r.sugestao_ia)}</div></div>`;}
+   $('#cOut').innerHTML=hf;
+   // Reforma também pode ter dado p/ o NCM mesmo sem benefício de ICMS
+   (async()=>{try{const isN=/^[\d.\s]{4,}$/.test(prod);const q=isN?('ncm='+encodeURIComponent(prod)):('descricao='+encodeURIComponent(prod));const ref=await api('/reforma?'+q);if(ref&&ref.ok&&ref.total){const rb=document.createElement('div');rb.className='reformabox';rb.innerHTML=reformaRender(ref);$('#cOut').appendChild(rb);}}catch(e){}})();
+   return;}
  let h='';
  for(const it of r.itens){h+=cardHTML(it,r.consulta&&r.consulta.regime_rotulo);}
  if(r.explicacao_ia)h+=`<div class="ia">🤖 <b>Análise da IA</b><div class="iamd">${mdLite(r.explicacao_ia)}</div></div>`;
