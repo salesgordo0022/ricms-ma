@@ -187,16 +187,22 @@ def _lw_reforma(ncm=None, descricao=None):
     def _limpa(t):
         return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(t or ""))).strip()
     def _nome_produto(codigo, desc):
-        """Nome do produto: se a folha da TIPI for genérica ('Outros'), usa a descrição
-        oficial do NCM (base local) — o cliente não fica só com 'Outros'."""
+        """Nome do produto para o cliente — NUNCA genérico ('Outros', 'Preto'...).
+        1) se o NCM existe na nossa base (match específico 6/8 díg) -> usa o nome oficial dela
+           (consistente e claro; unifica folhas como 'Preto'/'Outros' no mesmo produto);
+        2) senão, mantém a folha da TIPI se for informativa;
+        3) se a folha for genérica/curta -> tenta nome por capítulo (4 díg) ou 'NCM x'."""
+        cod = re.sub(r"\D", "", codigo or "")
+        real6 = _ncm_desc_local(cod, 6)          # nosso produto (autoritativo) tem prioridade
+        if real6:
+            return real6
         d = re.sub(r"^[\s\-–—•·.]+", "", desc or "").strip()
         chave = re.sub(r"[^a-zç ]", "", d.lower()).strip()
-        if d and chave not in ("outros", "outras", "outro", "outra", ""):
+        generico = (chave in ("outros", "outras", "outro", "outra", "demais", "")) or len(chave) <= 4
+        if not generico:
             return d
-        real = _ncm_desc_local(re.sub(r"\D", "", codigo or ""))
-        if real:
-            return real
-        return d or ("NCM " + (codigo or "-"))
+        real4 = _ncm_desc_local(cod, 4)
+        return real4 or d or ("NCM " + (codigo or "-"))
     out = []
     for it in itens:
         item = it.get("item", {}) if isinstance(it, dict) else {}
@@ -861,12 +867,13 @@ def resolver(produto, etapa, operacao, regime, perfil=None, operacoes=None):
     return out
 
 
-def _ncm_desc_local(cod_ncm):
-    """Descrição OFICIAL do NCM a partir da própria base (prefixo 8>6>4 díg). '' se não achar."""
-    if not cod_ncm or len(cod_ncm) < 4:
+def _ncm_desc_local(cod_ncm, min_len=4):
+    """Descrição OFICIAL do NCM a partir da própria base (prefixo 8>6>4 díg). '' se não achar.
+    min_len=6 exige match específico (6/8 díg) — evita casar produto errado só pelo capítulo."""
+    if not cod_ncm or len(cod_ncm) < min_len:
         return ""
     for L in (8, 6, 4):
-        if len(cod_ncm) < L:
+        if L < min_len or len(cod_ncm) < L:
             continue
         pref = cod_ncm[:L]
         for it in IDX:

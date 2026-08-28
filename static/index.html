@@ -763,16 +763,25 @@ function reformaRender(res){
   const tipo=principal.tipo_beneficio||'Benefício'; const pl=benPlain(tipo);
   const cfg=[['NCM',g.ncm],['CST IBS/CBS',principal.cst||'-'],['cClassTrib',principal.cclasstrib||'-'],['Redução',principal.reducao||(_redNum(principal.reducao)>=0?principal.reducao:'—')]];
   const cfgHTML=cfg.map(c=>`<div class="fs"><div class="k">${escH(c[0])}</div><div class="v" style="font-size:16px">${escH(c[1]||'—')}</div></div>`).join('');
+  // base legal / como se aplica (legislação) — junta de todas as linhas do grupo
+  const leg=[]; const vis=new Set();
+  const addLeg=(ic,tx)=>{tx=(tx||'').trim();if(tx&&!vis.has(tx)){vis.add(tx);leg.push([ic,tx]);}};
+  addLeg('✔',principal.aplicabilidade);
+  for(const l of g.linhas){addLeg('📖',l.base_legal?('Base legal: '+l.base_legal):'');}
+  addLeg('⚠️',principal.observacao);
+  const legHTML=leg.length?`<div class="fsec"><div class="ftitle"><span class="n">2</span> Base legal e como se aplica</div>
+    <div class="fnota">${leg.map(l=>`<div class="fn"><span class="ck">${l[0]}</span><span>${escH(l[1])}</span></div>`).join('')}</div></div>`:'';
   // outras classificações possíveis (compacto)
   const outras=g.linhas.filter(l=>l!==principal);
-  const outrasHTML=outras.length?`<div class="fsec"><div class="ftitle"><span class="n">2</span> Outras classificações possíveis <span class="small mut">(escolha conforme seu enquadramento)</span></div>
-    <div class="lwlist">${outras.map(l=>`<div class="lwrow" style="border-left-color:#2e75b6"><div class="small"><b>${escH(l.tipo_beneficio||'—')}</b>${l.reducao?(' · redução '+escH(l.reducao)):''} · CST ${escH(l.cst||'-')} · cClassTrib ${escH(l.cclasstrib||'-')}</div></div>`).join('')}</div></div>`:'';
+  const outrasHTML=outras.length?`<div class="fsec"><div class="ftitle"><span class="n">3</span> Outras classificações possíveis <span class="small mut">(escolha conforme seu enquadramento)</span></div>
+    <div class="lwlist">${outras.map(l=>`<div class="lwrow" style="border-left-color:#2e75b6"><div class="small"><b>${escH(l.tipo_beneficio||'—')}</b>${l.reducao?(' · redução '+escH(l.reducao)):''} · CST ${escH(l.cst||'-')} · cClassTrib ${escH(l.cclasstrib||'-')}${l.base_legal?(' · '+escH(l.base_legal)):''}</div></div>`).join('')}</div></div>`:'';
   h+=`<div class="fcard" style="margin:10px 0">
    <div class="fhead"><div><div class="fname">${escH(g.nome)}</div><div class="fsub">${escH(tipo)}${principal.reducao?(' • '+escH(principal.reducao)):''} • IBS/CBS • NCM ${escH(g.ncm)}</div></div><div class="fbadge">✓ Reforma</div></div>
    ${pl?`<div class="rc-plain" style="margin:0 18px">💡 ${escH(pl)}</div>`:''}
    <div class="fsec"><div class="ftitle"><span class="n">1</span> Classificação IBS/CBS (recomendada)</div><div class="fstat">${cfgHTML}</div>
     ${principal.cst_desc?`<div class="small mut" style="margin-top:8px">CST ${escH(principal.cst)}: ${escH(principal.cst_desc)}</div>`:''}
     ${principal.cclasstrib_desc?`<div class="small mut" style="margin-top:3px">cClassTrib ${escH(principal.cclasstrib)}: ${escH(principal.cclasstrib_desc)}</div>`:''}</div>
+   ${legHTML}
    ${outrasHTML}
   </div>`;
  }
