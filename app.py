@@ -186,6 +186,17 @@ def _lw_reforma(ncm=None, descricao=None):
     # achatar p/ exibição (com CST IBS/CBS, cClassTrib, NCM e carga)
     def _limpa(t):
         return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(t or ""))).strip()
+    def _nome_produto(codigo, desc):
+        """Nome do produto: se a folha da TIPI for genérica ('Outros'), usa a descrição
+        oficial do NCM (base local) — o cliente não fica só com 'Outros'."""
+        d = re.sub(r"^[\s\-–—•·.]+", "", desc or "").strip()
+        chave = re.sub(r"[^a-zç ]", "", d.lower()).strip()
+        if d and chave not in ("outros", "outras", "outro", "outra", ""):
+            return d
+        real = _ncm_desc_local(re.sub(r"\D", "", codigo or ""))
+        if real:
+            return real
+        return d or ("NCM " + (codigo or "-"))
     out = []
     for it in itens:
         item = it.get("item", {}) if isinstance(it, dict) else {}
@@ -206,7 +217,7 @@ def _lw_reforma(ncm=None, descricao=None):
                 break
         out.append({
             "ncm": _limpa(item.get("codigo", "")),
-            "descricao": _limpa(item.get("item_descricao") or item.get("descricao", "")),
+            "descricao": _nome_produto(item.get("codigo", ""), _limpa(item.get("item_descricao") or item.get("descricao", ""))),
             "tipo_beneficio": _limpa(ben.get("tipo_beneficio", "")),
             "reducao": red_txt,
             "cst": _limpa(c0.get("codigo_cst", "")),
