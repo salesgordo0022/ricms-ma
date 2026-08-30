@@ -9,10 +9,10 @@ Assistente Fiscal ICMS/MA - Backend (FastAPI)
 import os, json, re, unicodedata, datetime, threading, tempfile, uuid
 from pathlib import Path
 import httpx
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).parent
@@ -40,6 +40,38 @@ else:
     PROVIDER = "nenhum"; AI_KEY = ""; AI_URL = ""; MODEL = ""; FALLBACK_MODEL = ""
 
 app = FastAPI(title="Assistente Fiscal ICMS/MA")
+
+# ---------- SEGURANÇA: cabeçalhos + rate-limit anti-abuso (protege LLM/quota) ----------
+import time as _time
+from collections import deque as _deque
+_RL = {}                       # ip -> deque[timestamps] (janela deslizante)
+_RL_JANELA = 60.0              # segundos
+_RL_MAX = 40                   # req/min por IP nos endpoints que gastam IA/LegisWeb
+_RL_ROTAS = ("/api/consulta", "/api/chat", "/api/legisweb", "/api/reforma", "/api/gtin", "/api/lw", "/api/auditoria")
+
+
+@app.middleware("http")
+async def _seguranca(request: Request, call_next):
+    # rate-limit só nas rotas caras
+    path = request.url.path
+    if any(path.startswith(r) for r in _RL_ROTAS):
+        ip = (request.client.host if request.client else "?")
+        agora = _time.monotonic()
+        dq = _RL.setdefault(ip, _deque())
+        while dq and agora - dq[0] > _RL_JANELA:
+            dq.popleft()
+        if len(dq) >= _RL_MAX:
+            return JSONResponse({"ok": False, "erro": "Muitas consultas em pouco tempo. Aguarde um instante e tente de novo."}, status_code=429)
+        dq.append(agora)
+        if len(_RL) > 5000:      # evita crescer sem limite
+            for k in [k for k, v in list(_RL.items()) if not v or agora - v[-1] > _RL_JANELA][:2000]:
+                _RL.pop(k, None)
+    resp = await call_next(request)
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "SAMEORIGIN"
+    resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    resp.headers["X-XSS-Protection"] = "1; mode=block"
+    return resp
 
 # ---------- carregar base ----------
 BASE = json.loads((BASE_DIR / "data" / "base.json").read_text(encoding="utf-8"))
@@ -1002,20 +1034,20 @@ REGRAS:
 - ESCOPO DE OPERACAO: se um item tiver o campo 'aviso_operacao', o beneficio NAO se aplica a operacao escolhida pelo cliente — deixe isso EXPLICITO ("nesta operacao NAO se aplica; tribute normalmente") e NAO o recomende como valido. Ex.: reducao de 60% de insumos agropecuarios so vale em saida INTERESTADUAL, entao em venda INTERNA (varejo) NAO se aplica.
 - Seja objetivo e direto. Portugues do Brasil."""
 
-# ---------- modelos ----------
+# ---------- modelos (com LIMITES de tamanho: evita abuso/custo de IA e DoS) ----------
 class ConsultaIn(BaseModel):
-    produto: str
-    etapa: str = "varejo"
-    operacao: str = "interna"
-    operacoes: list = []
-    regime: str = "lucro_presumido"
-    perfil_id: str | None = None
+    produto: str = Field(max_length=200)
+    etapa: str = Field(default="varejo", max_length=40)
+    operacao: str = Field(default="interna", max_length=40)
+    operacoes: list = Field(default=[], max_length=12)
+    regime: str = Field(default="lucro_presumido", max_length=40)
+    perfil_id: str | None = Field(default=None, max_length=80)
     explicar_ia: bool = True
 
 class ChatIn(BaseModel):
-    mensagem: str
-    historico: list = []
-    perfil_id: str | None = None
+    mensagem: str = Field(max_length=2000)
+    historico: list = Field(default=[], max_length=30)
+    perfil_id: str | None = Field(default=None, max_length=80)
 
 class Perfil(BaseModel):
     id: str | None = None

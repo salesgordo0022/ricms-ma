@@ -703,6 +703,9 @@ function cardHTML(it,regimeRotulo){
   else{big='✓';rtxt=`Benefício aplicado: <b>${cf}</b>. Veja "Como funciona".`;}
  }
  else if(it.reducao_bc){big='23%';rtxt=`Base de cálculo <b>reduzida</b> (${reduc}) em vez dos 23% cheios.`;}
+ else if(/diferi/i.test(it.beneficio||'')){rlabel='ICMS diferido';big='⏳';rtxt='ICMS <b>diferido</b> — o imposto é adiado para a etapa seguinte da cadeia; nesta saída não há destaque nem recolhimento.';}
+ else if(/isen/i.test(it.beneficio||'')){rlabel='ICMS';big='0%';rtxt='Operação <b>isenta</b> — não há ICMS a recolher nesta saída.';}
+ else if(/cr[eé]dito/i.test(it.beneficio||'')){rlabel='ICMS';big='✓';rtxt='Benefício de <b>crédito</b> (presumido/outorgado/manutenção) — veja "Como funciona".';}
  else{big='23%';rtxt='Operação tributada integralmente à alíquota interna de <b>23%</b>.';}
  const cfg=[['Regime',regime,''],['CST/CSOSN',trib,campo],['Redução BC',reduc,''],['Alíquota','23%',''],['Carga Final',escH(it.carga_final||'—'),'']];
  const cfgHTML=cfg.map(c=>`<div class="fs"><div class="k">${c[0]}</div><div class="v">${c[1]}</div>${c[2]?`<div class="s">${c[2]}</div>`:''}</div>`).join('');

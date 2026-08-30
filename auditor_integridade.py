@@ -78,14 +78,11 @@ def check_numeros():
         carga = (b.get("carga_final") or "").strip()
         reduc = (b.get("reducao_bc") or "").strip()
         trib = _norm(b.get("cst_icms_sugerido"))
-        is_st = bool(re.search(r"(\b60\b|\b500\b|^10|201|202)", trib)) or "st" in _norm(b.get("cest"))
-        # CLIENT-FACING: benefício econômico que o card renderiza como "23% tributado integral"
-        # (sem carga, sem redução, sem isenção, sem ST) -> cliente NÃO vê o benefício.
-        # 'manutenção/crédito' é benefício do LADO DO CRÉDITO (não muda a carga da saída) -> não conta.
-        eh_carga = any(e in ben for e in ("reduc", "diferimento")) or ("credito presumido" in ben) or ("credito outorgado" in ben)
-        if eh_carga and "isen" not in ben and "manuten" not in ben \
-           and not carga and not reduc and not is_st:
-            erro("CARD_MOSTRA_23PCT", i, prod, f"benefício '{b.get('beneficio')}' sem carga/redução/ST -> card mostra 23% (sem benefício) ao cliente")
+        is_st = bool(re.search(r"(\b60\b|\b500\b|^10\b|\b201\b|\b202\b)", trib))
+        # CLIENT-FACING: o card só cai em "23% tributado integral" para REDUÇÃO sem número.
+        # Diferimento/Isenção/Crédito têm render próprio no cardHTML (diferido/0%/✓) -> não caem em 23%.
+        if "reduc" in ben and "isen" not in ben and not carga and not reduc and not is_st:
+            erro("CARD_MOSTRA_23PCT", i, prod, f"Redução de BC '{b.get('beneficio')}' sem carga/redução -> card mostra 23% (sem benefício) ao cliente")
         # isenção com carga NÃO-zero é contradição — salvo benefício DUPLO (isenção OU redução)
         if "isen" in ben and "reduc" not in ben and carga and not _carga_zero(carga):
             alerta("ISENCAO_COM_CARGA", i, prod, f"Isenção com carga_final='{carga}' (esperado 0%/isento)")
