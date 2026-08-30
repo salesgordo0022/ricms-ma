@@ -755,6 +755,14 @@ def montar_item(b, etapa, operacao, regime):
     elif esc == "interna" and fam == "inter":
         item["aviso_operacao"] = "Este benefício vale para operação INTERNA (dentro do MA). Na operação interestadual selecionada ele NÃO se aplica dessa forma."
         item["nao_aplica"] = True
+    # DIFERIMENTO só vale entre contribuintes (adia o imposto p/ a etapa seguinte da cadeia).
+    # Em venda a CONSUMIDOR FINAL não há etapa seguinte -> não se aplica.
+    _ben = _norm(str(b.get("beneficio", "")) + " " + str(b.get("beneficio_resumo", "")))
+    if "diferimento" in _ben and operacao in ("interna_consumidor", "consumidor") and not item.get("nao_aplica"):
+        item["aviso_operacao"] = ("Diferimento só se aplica em operação entre CONTRIBUINTES (há uma etapa seguinte que recolhe o "
+                                  "imposto). Na venda a CONSUMIDOR FINAL não existe etapa seguinte — encerra-se a cadeia, então "
+                                  "tribute normalmente (CST 00 / CSOSN 102 no Simples).")
+        item["nao_aplica"] = True
     # escopo por ETAPA/contribuinte: benefício só de produtor NÃO vale p/ empresa (varejo/atacado), etc.
     _te = _norm(" ".join(str(b.get(k, "")) for k in ("produto", "beneficio_resumo", "condicao_resumo", "condicao_texto_integral", "base_legal")))
     etp = set()
