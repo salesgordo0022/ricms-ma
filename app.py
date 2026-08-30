@@ -99,6 +99,11 @@ def _norm(s):
 def _dig(s):
     return re.sub(r"\D", "", str(s or ""))
 
+
+def _limpa_num(s):
+    """Tira jargão interno do número mostrado ao cliente: '65,22% (calc.)' -> '65,22%'."""
+    return re.sub(r"\s*\((calc|aprox|estimad|arred|deriv)[^)]*\)", "", str(s or ""), flags=re.I).strip()
+
 # ===== RECURSOS EXTRAS (checklist de elegibilidade + segmentos) =====
 # Para DESLIGAR tudo: troque para False (ou apague eligibilidade.py). O frontend some sozinho.
 RECURSOS_EXTRAS = True
@@ -683,8 +688,8 @@ def _como_funciona(b, etapa, operacao, regime):
             mech = ("A redução de base é benefício de ICMS estadual e NÃO se aplica ao Simples Nacional — "
                     "a operação é tributada normalmente pelo Simples (CSOSN 102).")
         else:
-            redu = b.get("reducao_bc", "")
-            carga = b.get("carga_final", "")
+            redu = _limpa_num(b.get("reducao_bc", ""))
+            carga = _limpa_num(b.get("carga_final", ""))
             mech = ("O ICMS é calculado sobre uma base de cálculo REDUZIDA"
                     + (f" de {redu}" if redu else "")
                     + " — em vez dos 23% cheios"
@@ -701,7 +706,7 @@ def _como_funciona(b, etapa, operacao, regime):
     elif tp["imn"]:
         mech = "A operação é NÃO TRIBUTADA / IMUNE (CST 41 / CSOSN 300) — não há ICMS a recolher."
     elif tp["cred"]:
-        carga = b.get("carga_final", "")
+        carga = _limpa_num(b.get("carga_final", ""))
         mech = ("Você apura o ICMS com CRÉDITO PRESUMIDO/OUTORGADO: em vez do crédito normal das entradas, "
                 "usa um crédito fixado pela lei, o que reduz a carga a recolher"
                 + (f" ({carga})" if carga else "") + ". Em regra é OPCIONAL e VEDA o aproveitamento de outros créditos "
@@ -728,9 +733,9 @@ def _como_funciona(b, etapa, operacao, regime):
     trib, campo, obs = seleciona_trib(b, etapa, regime)
     nums.append(f"{campo}: {trib}" + (f" — {obs}" if obs else ""))
     if b.get("reducao_bc"):
-        nums.append(f"Redução de BC: {b['reducao_bc']}")
+        nums.append(f"Redução de BC: {_limpa_num(b['reducao_bc'])}")
     if b.get("carga_final"):
-        nums.append(f"Carga efetiva: {b['carga_final']}")
+        nums.append(f"Carga efetiva: {_limpa_num(b['carga_final'])}")
     if nums:
         blocos.append({"t": "Números do enquadramento", "d": nums})
 
@@ -756,7 +761,7 @@ def montar_item(b, etapa, operacao, regime):
         "produto": b.get("produto", ""), "ncm": b.get("ncm", ""), "cest": b.get("cest", ""),
         "beneficio": b.get("beneficio", ""), "beneficio_resumo": b.get("beneficio_resumo", ""),
         "regime_rotulo": _rotulo_regime(regime), "campo_trib": campo, "trib": trib, "trib_obs": trib_obs,
-        "reducao_bc": b.get("reducao_bc", ""), "carga_final": b.get("carga_final", ""),
+        "reducao_bc": _limpa_num(b.get("reducao_bc", "")), "carga_final": _limpa_num(b.get("carga_final", "")),
         "cst_piscofins": b.get("cst_piscofins", ""),
         "cfop_exato": esc["cfop"] if esc else "", "cfop_significado": esc.get("significado", "") if esc else "",
         "cfop_confirmado": esc.get("confirmado_na_tabela", False) if esc else False,

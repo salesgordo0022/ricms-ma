@@ -663,12 +663,14 @@ function condHTML(it){
 }
 function cardHTML(it,regimeRotulo){
  const escH=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ // remove jargão interno do número mostrado ao cliente: "(calc.)", "(aprox.)", "(estimado)"…
+ const limpaNum=s=>String(s||'').replace(/\s*\((calc|aprox|estimad|arred|deriv)[^)]*\)/gi,'').trim();
  const pct=s=>{const m=String(s||'').match(/(\d+([.,]\d+)?)\s*%/);return m?m[1].replace('.',',')+'%':'';};
  const naAll=!!it.nao_aplica;
  const carga=pct(it.carga_final);
  const regime=escH(it.regime_rotulo||regimeRotulo||'-');
  const trib=escH(it.trib||'-');const campo=escH(it.campo_trib||'CST');
- const reduc=escH(it.reducao_bc||'—');
+ const reduc=escH(limpaNum(it.reducao_bc)||'—');
  const ops=(it.operacoes&&it.operacoes.length)?it.operacoes:[{
   operacao:it.operacao||'interna',cfop_exato:it.cfop_exato||'',cfop_significado:it.cfop_significado||'',
   cfop_confirmado:it.cfop_confirmado,nao_aplica:naAll,aviso_operacao:it.aviso_operacao||'',obs_produtor:it.obs_produtor||''}];
@@ -694,7 +696,7 @@ function cardHTML(it,regimeRotulo){
  else if(stRev){rlabel='ICMS (ST)';big=carga||'ST';rtxt='ICMS já retido na origem por substituição tributária. Na sua venda <b>não destaque nem recolha</b> ICMS.';}
  else if(stRet){rlabel='ICMS Final';big=carga||'—';rtxt='Você é responsável pela retenção do ICMS-ST: destaca o ICMS próprio e retém o ST sobre a pauta (CEST correto).';}
  else if(it.carga_final){
-  const cf=escH(it.carga_final);
+  const cf=escH(limpaNum(it.carga_final));
   const isCred=/cr[eé]dito/i.test(it.beneficio||'');
   const isDif=/diferi/i.test(it.beneficio||'');
   if(isDif){big=carga||'⏳';rtxt=`ICMS <b>diferido</b> — ${cf}. O imposto é adiado para a etapa seguinte da cadeia.`;}
@@ -707,7 +709,7 @@ function cardHTML(it,regimeRotulo){
  else if(/isen/i.test(it.beneficio||'')){rlabel='ICMS';big='0%';rtxt='Operação <b>isenta</b> — não há ICMS a recolher nesta saída.';}
  else if(/cr[eé]dito/i.test(it.beneficio||'')){rlabel='ICMS';big='✓';rtxt='Benefício de <b>crédito</b> (presumido/outorgado/manutenção) — veja "Como funciona".';}
  else{big='23%';rtxt='Operação tributada integralmente à alíquota interna de <b>23%</b>.';}
- const cfg=[['Regime',regime,''],['CST/CSOSN',trib,campo],['Redução BC',reduc,''],['Alíquota','23%',''],['Carga Final',escH(it.carga_final||'—'),'']];
+ const cfg=[['Regime',regime,''],['CST/CSOSN',trib,campo],['Redução BC',reduc,''],['Alíquota','23%',''],['Carga Final',escH(limpaNum(it.carga_final)||'—'),'']];
  const cfgHTML=cfg.map(c=>`<div class="fs"><div class="k">${c[0]}</div><div class="v">${c[1]}</div>${c[2]?`<div class="s">${c[2]}</div>`:''}</div>`).join('');
  const notaArr=[['CFOP correto'],['CST/CSOSN '+trib]];
  if(it.reducao_bc)notaArr.push(['Base reduzida']);

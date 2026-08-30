@@ -92,6 +92,15 @@ except Exception:
     passou = False
 ok(not passou, "produto > 200 chars é rejeitado")
 
+print("\n=== 8b. Nenhum jargão interno ('(calc.)') chega ao cliente ===")
+import json as _json
+com_jargao = []
+for b in app.BENEF[:400]:
+    it = app.montar_item(b, "varejo", "interna", "lucro_presumido")
+    if "(calc" in _json.dumps(it, ensure_ascii=False).lower():
+        com_jargao.append(b.get("produto"))
+ok(not com_jargao, f"card sem '(calc.)'/jargão (achados: {com_jargao[:2]})")
+
 print("\n=== 9. Auditoria de integridade da base (0 erros graves) ===")
 n_erros = auditar()
 ok(n_erros == 0, f"auditor_integridade: {n_erros} erro(s) grave(s)")
