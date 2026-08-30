@@ -792,6 +792,21 @@ def montar_item(b, etapa, operacao, regime):
         item["aviso_operacao"] = (f"Este benefício é específico de {alvo}. Na etapa selecionada "
                                   f"({rot.get(etapa, etapa)}) ele NÃO se aplica — tribute normalmente (CST 00 / CSOSN 102 no Simples).")
         item["nao_aplica"] = True
+    # completude do card: aponta o que falta (a IA complementa e o usuário é avisado)
+    falt = []
+    if not (b.get("base_legal") or "").strip():
+        falt.append("base legal")
+    if not item.get("cfop_exato"):
+        falt.append("CFOP")
+    if not (item.get("trib") or "").strip():
+        falt.append("CST/CSOSN")
+    _bn = _norm(str(b.get("beneficio", "")) + " " + str(b.get("beneficio_resumo", "")))
+    if ("reduc" in _bn) and not (str(b.get("carga_final", "")).strip() or str(b.get("reducao_bc", "")).strip()):
+        falt.append("carga/redução")
+    if not (str(b.get("condicao_texto_integral", "")).strip() or str(b.get("condicao_resumo", "")).strip()):
+        falt.append("condições/requisitos")
+    item["faltando"] = falt
+    item["completo"] = not falt
     if RECURSOS_EXTRAS:
         try:
             item["elegibilidade"] = eligibilidade.gerar_checklist(item, etapa, operacao, regime, _categoria_regime(regime))
@@ -1074,10 +1089,21 @@ async def consulta(inp: ConsultaIn):
             "- Use SOMENTE os dados fornecidos; nao invente NCM/CFOP/CST/base legal.\n"
             "- No fim, uma linha 'Resumo:' dizendo qual enquadramento se aplica ao caso do cliente."
         )
+        # completar lacunas: se algum card veio incompleto, pede p/ a IA preencher (marcando 'a confirmar')
+        faltas = sorted({f for it in res["itens"] for f in (it.get("faltando") or [])})
+        if faltas:
+            instrucao += (
+                "\n\nATENCAO — DADOS FALTANDO na base para um ou mais itens: " + ", ".join(faltas) + ".\n"
+                "Ao final, acrescente um bloco '### ⚠️ Complemento (a confirmar)' preenchendo APENAS essas lacunas "
+                "com a regra geral do ICMS/MA que voce conhece (ex.: aliquota interna padrao, CFOP tipico, base "
+                "legal provavel), deixando EXPLICITO que e uma orientacao a CONFIRMAR com o contador/na norma, "
+                "pois nao consta na nossa base."
+            )
         msgs = [{"role": "system", "content": SYS_PROMPT},
                 {"role": "user", "content": instrucao}]
         txt, err = await chamar_ia(msgs, max_tokens=1600)
         res["explicacao_ia"] = txt or f"(IA indisponivel: {err})"
+        res["faltando"] = faltas
     elif inp.explicar_ia and not res.get("encontrou"):
         # NAO achou beneficio na base -> IA identifica o produto do NCM, orienta a tributacao
         # generica (o que o cliente deve colocar) e SUGERE se ha beneficio p/ ele ou similar.
